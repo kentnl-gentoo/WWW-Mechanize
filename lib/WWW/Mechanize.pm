@@ -6,13 +6,13 @@ WWW::Mechanize - automate interaction with websites
 
 =head1 VERSION
 
-Version 0.48
+Version 0.49
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.13 2003/06/22 18:46:56 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.15 2003/06/23 19:47:41 petdance Exp $
 
 =cut
 
-our $VERSION = "0.48";
+our $VERSION = "0.49";
 
 =head1 SYNOPSIS
 
@@ -1001,9 +1001,15 @@ OK to do the redirect.
 =cut
 
 sub redirect_ok {
-    $_[0]->{redirected_uri} = $_[1]->uri;
+    my $self = shift;
+    my $prospective_request = shift;
 
-    return 1;
+    my $ok = $self->SUPER::redirect_ok( $prospective_request );
+    if ( $ok ) {
+	$self->{redirected_uri} = $prospective_request->uri;
+    }
+
+    return $ok;
 };
 
 
