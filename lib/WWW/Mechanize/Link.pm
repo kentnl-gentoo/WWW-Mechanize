@@ -13,7 +13,7 @@ wants to deal with as an array.
 
 =head1 Constructor
 
-=head2 C<< new( I<$url>, I<$text>, I<$name>, I<$tag> ) >>
+=head2 new( I<$base>, I<$url>, I<$text>, I<$name>, I<$tag> ) 
 
 Creates and returns a new C<WWW::Mechanize::Link> object.
 
@@ -21,13 +21,21 @@ Creates and returns a new C<WWW::Mechanize::Link> object.
 
 sub new {
     my $class = shift;
+    
+    if ( @_ != 5 ) {
+	require Carp;
+	Carp::croak "Must pass five arguments to WWW::Mechanize::Link's constructor\n";
+    }
 
+    my $base = shift;
     my $url = shift;
     my $text = shift;
     my $name = shift;
     my $tag = shift;
 
-    my $self = [$url,$text,$name,$tag];
+    # The order of the first four must stay as they are for
+    # compatibility with older code.
+    my $self = [$url,$text,$name,$tag,$base];
 
     bless $self, $class;
 
@@ -36,19 +44,23 @@ sub new {
 
 =head1 Accessors
 
-=head2 C<< $link->url() >>
+=head2 $link->base() 
+
+Base URL to which the links are relative.
+
+=head2 $link->url() 
 
 URL from the link
 
-=head2 C<< $link->text() >>
+=head2 $link->text() 
 
 Text of the link
 
-=head2 C<< $link->name() >>
+=head2 $link->name() 
 
 NAME attribute from the source tag, if any.
 
-=head2 C<< $link->tag() >>
+=head2 $link->tag() 
 
 Tag name (either "a", "frame" or "iframe").
 
@@ -58,6 +70,34 @@ sub url  { return ($_[0])->[0]; }
 sub text { return ($_[0])->[1]; }
 sub name { return ($_[0])->[2]; }
 sub tag  { return ($_[0])->[3]; }
+sub base { return ($_[0])->[4]; }
+
+=head2 $link->URI()
+
+Returns the URL as a L<URI::URL> object.
+
+=cut
+
+sub URI {
+    my $self = shift;
+
+    require URI::URL;
+    my $URI = URI::URL->new( $self->url, $self->base );
+
+    return $URI;
+}
+
+=head2 $link->url_abs()
+
+Returns the URL as an absolute URL string.
+
+=cut
+
+sub url_abs {
+    my $self = shift;
+
+    return $self->URI->abs;
+}
 
 =head1 Author
 

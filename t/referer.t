@@ -2,8 +2,11 @@
 use strict;
 use FindBin;
 
-use Test::More tests => 16;
-use_ok('WWW::Mechanize');
+use Test::More tests => 18;
+use_ok( 'WWW::Mechanize' );
+
+my $agent = WWW::Mechanize->new();
+isa_ok( $agent, "WWW::Mechanize" );
 
 SKIP: {
     eval { require HTTP::Daemon; };
@@ -13,13 +16,16 @@ SKIP: {
     delete $ENV{HTTP_PROXY};
 
     # Now start a fake webserver, fork, and connect to ourselves
-    open SERVER, qq'"$^X" $FindBin::Bin/referer-server |'
-	or die "Couldn't spawn fake server : $!";
+    my $command = qq'"$^X" $FindBin::Bin/referer-server';
+    if ($^O eq 'VMS') {
+	$command = qq'mcr $^X t/referer-server';
+    }
+    
+    open SERVER, "$command |" or die "Couldn't spawn fake server: $!";
     sleep 1; # give the child some time
     my $url = <SERVER>;
     chomp $url;
 
-    my $agent = WWW::Mechanize->new();
     $agent->get( $url );
     is($agent->status, 200, "Got first page") or diag $agent->res->message;
     is($agent->content, "Referer: ''", "First page gets sent with empty referrer");
@@ -48,6 +54,13 @@ SKIP: {
     is($agent->content, "Referer: '$ref'", "Custom referer can be set");
     is( ref $agent->uri, "", "URI shouldn't be an object #5" );
 };
+
+SKIP: {
+    eval "use Test::Memory::Cycle";
+    skip "Test::Memory::Cycle not installed", 1 if $@;
+
+    memory_cycle_ok( $agent, "No memory cycles found" );
+}
 
 END {
     close SERVER;
