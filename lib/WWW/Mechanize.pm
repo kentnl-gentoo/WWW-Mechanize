@@ -6,13 +6,13 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 0.63
+Version 0.64
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.75 2003/10/13 16:47:14 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.78 2003/10/24 04:48:34 petdance Exp $
 
 =cut
 
-our $VERSION = "0.63";
+our $VERSION = "0.64";
 
 =head1 SYNOPSIS
 
@@ -359,10 +359,11 @@ sub get {
 
 =head2 C<< $a->reload() >>
 
-Acts like the reload button in a browser: Reperforms the current request.
+Acts like the reload button in a browser: Reperforms the current
+request.
 
-Returns undef if there's no current request, or the L<HTTP::Response>
-object from the reload.
+Returns the L<HTTP::Response> object from the reload, or C<undef>
+if there's no current request.
 
 =cut
 
@@ -1243,18 +1244,23 @@ sub _extract_links {
     while (my $token = $p->get_tag( keys %urltags )) {
         my $tag = $token->[0];
         my $url = $token->[1]{$urltags{$tag}};
-        next unless defined $url;   # probably just a name link or <AREA NOHREF...>
 
         my $text;
         my $name;
         if ( $tag eq "a" ) {
             $text = $p->get_trimmed_text("/$tag");
             $text = "" unless defined $text;
+
+	    my $onClick = $token->[1]{onclick};
+	    if ( $onClick && ($onClick =~ /^window\.open\(\s*'([^']+)'/) ) {
+		$url = $1;
+	    }
         }
         if ( $tag ne "area" ) {
             $name = $token->[1]{name};
         }
 
+        next unless defined $url;   # probably just a name link or <AREA NOHREF...>
         push( @{$self->{links}}, WWW::Mechanize::Link->new( $url, $text, $name, $tag ) );
     }
 
