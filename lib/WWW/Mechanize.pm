@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.08
+Version 1.10
 
 =cut
 
-our $VERSION = "1.08";
+our $VERSION = "1.10";
 
 =head1 SYNOPSIS
 
@@ -930,9 +930,7 @@ Each of the images returned is a L<WWW::Mechanize::Image> object.
 In list context, C<find_all_images()> returns a list of the images.
 Otherwise, it returns a reference to the list of images.
 
-C<find_all_images()> with no parameters returns all images in the
-page.
-
+C<find_all_images()> with no parameters returns all images in the page.
 
 =cut
 
@@ -1699,7 +1697,8 @@ sub update_html {
         }
     }
     $self->{form}  = $self->{forms}->[0];
-    $self->_extract_links_and_images();
+    $self->_extract_links();
+    $self->_extract_images();
 
     $self->_parse_html(); #For compatibility with folks that used to overload that method.
 
@@ -1893,7 +1892,7 @@ sub _reset_page {
     return;
 }
 
-=head2 $mech->_extract_links_and_images()
+=head2 $mech->_extract_links()
 
 Extracts links from the content of a webpage, and populates the C<{links}>
 property with L<WWW::Mechanize::Link> objects.
@@ -1908,28 +1907,37 @@ my %link_tags = (
     meta => "content",
 );
 
-my %image_tags = (
-    img => "src",
-    input => "src",
-);
-
-sub _extract_links_and_images {
+sub _extract_links {
     my $self = shift;
 
     my $parser = HTML::TokeParser->new(\$self->{content});
 
     $self->{links} = [];
+
+    while ( my $token = $parser->get_tag( keys %link_tags ) ) {
+        my $link = $self->_link_from_token( $token, $parser );
+        push( @{$self->{links}}, $link ) if $link;
+    } # while
+
+    return;
+}
+
+
+my %image_tags = (
+    img => "src",
+    input => "src",
+);
+
+sub _extract_images {
+    my $self = shift;
+
+    my $parser = HTML::TokeParser->new(\$self->{content});
+
     $self->{images} = [];
 
-    while (my $token = $parser->get_tag( keys %link_tags, keys %image_tags )) {
-        my $tag = $token->[0];
-        if ( $link_tags{ $tag } ) {
-            my $link = $self->_link_from_token( $token, $parser );
-            push( @{$self->{links}}, $link ) if $link;
-        } else {
-            my $image = $self->_image_from_token( $token, $parser );
-            push( @{$self->{images}}, $image ) if $image;
-        }
+    while ( my $token = $parser->get_tag( keys %image_tags ) ) {
+        my $image = $self->_image_from_token( $token, $parser );
+        push( @{$self->{images}}, $image ) if $image;
     } # while
 
     return;
@@ -2117,6 +2125,8 @@ sub _die {
     &Carp::croak; # pass thru
 }
 
+__END__
+
 =head1 WWW::MECHANIZE'S SUBVERSION REPOSITORY
 
 Mech is hosted by the kind generosity of Ask and Robert,
@@ -2174,6 +2184,29 @@ for Mech.
 A random array of examples submitted by users, included with the
 Mechanize distribution.
 
+=back
+
+=head1 ARTICLES ABOUT WWW::MECHANIZE
+
+=over 4
+
+=item * L<http://www.oreilly.com/catalog/googlehks2/chapter/hack84.pdf>
+
+Leland Johnson's hack #84 in I<Google Hacks, 2nd Edition> is
+an example of a production script that uses WWW::Mechanize and
+HTML::TableContentParser. It takes in keywords and returns the estimated
+price of these keywords on Google's AdWords program.
+
+=item * L<http://www.perl.com/pub/a/2004/06/04/recorder.html>
+
+Linda Julien writes about using HTTP::Recorder to create WWW::Mechanize
+scripts.
+
+=item * L<http://www.developer.com/lang/other/article.php/3454041>
+
+Jason Gilmore's article on using WWW::Mechanize for scraping sales
+information from Amazon and eBay.
+
 =item * L<http://www.perl.com/pub/a/2003/01/22/mechanize.html>
 
 Chris Ball's article about using WWW::Mechanize for scraping TV
@@ -2204,6 +2237,10 @@ Here are modules that use or subclass Mechanize.  Let me know of any others:
 =over 4
 
 =item * L<Finance::Bank::LloydsTSB>
+
+=item * L<HTTP::Recorder>
+
+Acts as a proxy for web interaction, and then generates WWW::Mechanize scripts.
 
 =item * L<WWW::Bugzilla>
 
@@ -2268,11 +2305,13 @@ Jan Pazdziora,
 Dominique Quatravaux,
 Scott Lanning,
 Rob Casey,
+Leland Johnson,
+Joshua Gatcomb,
 and the late great Iain Truskett.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2004 Andy Lester. All rights reserved. This program is
+Copyright (c) 2005 Andy Lester. All rights reserved. This program is
 free software; you can redistribute it and/or modify it under the same
 terms as Perl itself.
 
