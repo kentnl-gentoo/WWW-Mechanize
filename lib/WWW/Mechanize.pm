@@ -6,13 +6,13 @@ WWW::Mechanize - automate interaction with websites
 
 =head1 VERSION
 
-Version 0.45
+Version 0.46
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.3 2003/06/17 04:22:15 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.7 2003/06/20 16:08:55 petdance Exp $
 
 =cut
 
-our $VERSION = "0.45";
+our $VERSION = "0.46";
 
 =head1 SYNOPSIS
 
@@ -173,15 +173,13 @@ is deprecated and subject to change in the future.
 sub get {
     my ($self, $uri) = @_;
 
-    if ( $self->{base} ) {
-        $self->{uri} = URI->new_abs( $uri, $self->{base} );
-    } else {
-        $self->{uri} = URI->new( $uri );
-    }
+    $uri = $self->{base}
+	    ? URI->new_abs( $uri, $self->{base} )
+	    : URI->new( $uri );
 
-    my $request = HTTP::Request->new( GET => $self->{uri} );
+    my $request = HTTP::Request->new( GET => $uri );
 
-    return $self->request( $request ); 
+    return $self->request( $request );
 }
 
 =head2 C<< $a->reload() >>
@@ -268,9 +266,13 @@ sub follow_link {
 
 =head2 C<< $a->follow($string|$num) >>
 
-Follow a link.  If you provide a string, the first link whose text 
-matches that string will be followed.  If you provide a number, it will 
-be the I<$num>th link on the page.  Note that the links are 0-based.
+(Note that C<follow()> is deprecated in favor of Cfollow_link()>,
+which provides more flexibility.)
+
+Follow a link.  If you provide a string, the first link whose text
+matches that string will be followed.  If you provide a number, it
+will be the I<$num>th link on the page.  Note that the links are
+0-based.
 
 Returns true if the link was found on the page or undef otherwise.
 
@@ -436,6 +438,54 @@ sub set_fields {
     }
 }
 
+=head2 C<< tick($name, $value [, $set] ) >>
+
+'Ticks' the first checkbox that has both the name and value assoicated
+with it on the current form.  Dies if there is no named check box for
+that value.  Passing in a false value as the third optional argument
+will cause the checkbox to be unticked.
+
+=cut
+
+sub tick {
+    my $this = shift;
+    my $name = shift;
+    my $value = shift;
+    my $set = @_ ? shift : 1;  # default to 1 if not passed
+
+    # loop though all the inputs
+    my $input;
+    my $index = 0;
+    while($input = $this->current_form->find_input($name,"checkbox",$index)) {
+	# Can't guarantee that the first element will be undef and the second
+	# element will be the right name
+	foreach my $val ($input->possible_values()) {
+	    next unless defined $val;
+	    if ($val eq $value) {
+		$input->value($set ? $value : undef);
+		return;
+	    }
+	}
+
+	# move onto the next input
+	$index++;
+    } # while
+
+    # got this far?  Didn't find anything
+    die "No checkbox '$name' for value '$value' in form";
+} # tick()
+
+=head2 C<< untick($name, $value) >>
+
+Causes the checkbox to be unticked.  Shorthand for
+C<tick($name,$value,undef)>
+
+=cut
+
+sub untick {
+    shift->tick(shift,shift,undef);
+}
+
 =head1 Form submission methods
 
 =head2 C<< $a->click( $button [, $x, $y] ) >>
@@ -456,7 +506,6 @@ sub click {
     my ($self, $button, $x, $y) = @_;
     for ($x, $y) { $_ = 1 unless defined; }
     $self->_push_page_stack();
-    $self->{uri} = $self->{form}->uri;
     my $request = $self->{form}->click($button, $x, $y);
     return $self->request( $request );
 }
@@ -475,7 +524,6 @@ sub submit {
     my $self = shift;
 
     $self->_push_page_stack();
-    $self->{uri} = $self->{form}->uri;
     my $request = $self->{form}->make_request;
     return $self->request( $request );
 }
@@ -535,7 +583,7 @@ sub submit_form {
     if ( my $fields = $args{'fields'} ) {
         if ( ref $fields eq 'HASH' ) {
 	    $self->set_fields( %{$fields} ) ;
-        } # XXX What if it's not a hash?  We just ignore it silently?
+        } # TODO: What if it's not a hash?  We just ignore it silently?
     }
 
     my $response;
@@ -658,24 +706,7 @@ sub title {
     return $p->header('Title');
 }
 
-=head1 Miscellaneous methods
-
-=head2 C<< $a->add_header(name => $value) >>
-
-Sets a header for the WWW::Mechanize agent to use every time it gets
-a webpage.  This is B<NOT> stored in the agent object (because if it
-were, it would disappear if you went back() past where you'd set it)
-but in the hash variable C<%WWW::Mechanize::headers>, which is a hash of
-all headers to be set.  You can manipulate this directly if you want to;
-the add_header() method is just provided as a convenience function for
-the most common case of adding a header.
-
-=cut
-
-sub add_header {
-    my ($self, $name, $value) = @_;
-    $WWW::Mechanize::headers{$name} = $value;
-}
+=head2 Content-handling methods
 
 =head2 C<< $a->extract_links() >>
 
@@ -828,6 +859,27 @@ sub find_link {
 
     return;
 } # find_link
+
+
+=head1 Miscellaneous methods
+
+=head2 C<< $a->add_header(name => $value) >>
+
+Sets a header for the WWW::Mechanize agent to use every time it gets
+a webpage.  This is B<NOT> stored in the agent object (because if it
+were, it would disappear if you went back() past where you'd set it)
+but in the hash variable C<%WWW::Mechanize::headers>, which is a hash of
+all headers to be set.  You can manipulate this directly if you want to;
+the add_header() method is just provided as a convenience function for
+the most common case of adding a header.
+
+=cut
+
+sub add_header {
+    my ($self, $name, $value) = @_;
+    $WWW::Mechanize::headers{$name} = $value;
+}
+
 =head2 C<< $a->quiet(true/false) >>
 
 Allows you to suppress warnings to the screen.
@@ -927,7 +979,10 @@ sub request {
     $self->{base}    = $self->{res}->base;
     $self->{ct}      = $self->{res}->content_type || "";
     $self->{content} = $self->{res}->content;
-    $self->{last_uri} = $self->{uri};
+    if ( $self->{res}->is_success ) {
+	$self->{last_uri} = $self->{uri};
+	$self->{uri} = $request->uri;
+    }
 
     if ( $self->is_html ) {
         $self->{forms} = [ HTML::Form->parse($self->{content}, $self->{res}->base) ];
@@ -994,6 +1049,18 @@ or get the specs from the environment:
     no_proxy="localhost,my.domain"
     export gopher_proxy wais_proxy no_proxy
 
+
+=head1 TODO
+
+Fix failures on t/back.t
+
+Make t/tick.t run off the local server
+
+Make it easier to save content.
+
+Make a method that finds all the IMG SRC
+
+Allow saving content to a file
 
 =head1 SEE ALSO
 
