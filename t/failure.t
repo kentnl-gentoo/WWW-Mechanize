@@ -1,6 +1,6 @@
 use warnings;
 use strict;
-use Test::More tests => 15;
+use Test::More tests => 16;
 
 use lib 't/lib';
 use Test::HTTP::LocalServer;
@@ -18,7 +18,7 @@ GOOD_PAGE: {
     isa_ok( $response, 'HTTP::Response' );
     ok( $response->is_success, "Success" );
     ok( $a->success, "Get webpage" );
-    isa_ok($a->uri, "URI", "Set uri");
+    is( ref $a->uri, "", "URI should be a plain scalar, not an object");
     ok( $a->is_html, "It's HTML" );
     is( $a->title, "WWW::Mechanize::Shell test page", "Correct title" );
 
@@ -26,6 +26,7 @@ GOOD_PAGE: {
     is( scalar @links, 8, "eight links, please" );
     my @forms = $a->forms;
     is( scalar @forms, 1, "One form" );
+    isa_ok( $forms[0], 'HTML::Form' );
 }
 
 BAD_PAGE: {

@@ -6,13 +6,13 @@ WWW::Mechanize - automate interaction with websites
 
 =head1 VERSION
 
-Version 0.57
+Version 0.58
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.48 2003/08/01 04:21:47 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.53 2003/08/15 04:30:48 petdance Exp $
 
 =cut
 
-our $VERSION = "0.57";
+our $VERSION = "0.58";
 
 =head1 SYNOPSIS
 
@@ -251,6 +251,7 @@ sub known_agent_aliases {
 =head2 C<< $a->get($url) >>
 
 Given a URL/URI, fetches it.  Returns an C<HTTP::Response> object.
+I<$url> can be a well-formed URL string, or a URI::* object.
 
 The results are stored internally in the agent object, but you don't
 know that.  Just use the accessors listed below.  Poking at the internals
@@ -274,7 +275,7 @@ sub get {
 	    ? URI->new_abs( $uri, $self->{base} )
 	    : URI->new( $uri );
 
-    return $self->SUPER::get( $uri, @_ );
+    return $self->SUPER::get( $uri->as_string, @_ );
 }
 
 =head2 C<< $a->reload() >>
@@ -369,8 +370,9 @@ sub follow_link {
 =head2 C<< $a->form_number($number) >>
 
 Selects the I<number>th form on the page as the target for subsequent
-calls to field() and click().  Emits a warning and returns false if there
-is no such form.  Forms are indexed from 1, so the first form is number 1,
+calls to field() and click().  Also returns the form that was
+selected.  Emits a warning and returns undef if there is no such
+form.  Forms are indexed from 1, so the first form is number 1,
 not zero.
 
 =cut
@@ -379,17 +381,19 @@ sub form_number {
     my ($self, $form) = @_;
     if ($self->{forms}->[$form-1]) {
         $self->{form} = $self->{forms}->[$form-1];
-        return 1;
+        return $self->{form};
     } else {
 	$self->_carp( "There is no form numbered $form" );
-        return 0;
+        return undef;
     }
 }
 
 =head2 C<< $a->form_name($name) >>
 
-Selects a form by name.  If there is more than one form on the page with
-that name, then the first one is used, and a warning is generated.
+Selects a form by name.  If there is more than one form on the page
+with that name, then the first one is used, and a warning is
+generated.  Also returns the form itself, or undef if it's not
+found.
 
 Note that this functionality requires libwww-perl 5.69 or higher.
 
@@ -405,10 +409,10 @@ sub form_name {
         $self->{form} = $matches[0];
 	$self->_carp( "There are ", scalar @matches, " forms named $form.  The first one was used." )
 	    if @matches > 1;
-        return 1;
+        return $self->{form};
     } else {
 	$self->_carp( qq{ There is no form named "$form"} );
-        return 0;
+        return undef;
     }
 }
 
@@ -863,8 +867,8 @@ sub find_link {
     my @conditions;
     push @conditions, q/ $_[0]->[0] eq $parms{url} /	    if defined $parms{url};
     push @conditions, q/ $_[0]->[0] =~ $parms{url_regex} /  if defined $parms{url_regex};
-    push @conditions, q/ $_[0]->[1] eq $parms{text} /	    if defined $parms{text};
-    push @conditions, q/ $_[0]->[1] =~ $parms{text_regex} / if defined $parms{text_regex};
+    push @conditions, q/ defined($_[0]->[1]) and $_[0]->[1] eq $parms{text} /	    if defined $parms{text};
+    push @conditions, q/ defined($_[0]->[1]) and $_[0]->[1] =~ $parms{text_regex} / if defined $parms{text_regex};
 
     my $matchfunc;
     if ( @conditions ) {
@@ -1008,7 +1012,7 @@ sub request {
         $request->header( $key => $value );
     }
     $self->{req} = $request;
-    $self->{redirected_uri} = $request->uri;
+    $self->{redirected_uri} = $request->uri->as_string;
     $self->{res} = $self->SUPER::request( $request, @_ );
 
     # These internal hash elements should be dropped in favor of
@@ -1148,11 +1152,19 @@ sub _extract_links {
     while (my $token = $p->get_tag( keys %urltags )) {
         my $tag = $token->[0];
         my $url = $token->[1]{$urltags{$tag}};
-        next unless defined $url;   # probably just a name link
+        next unless defined $url;   # probably just a name link or <AREA NOHREF...>
 
-        my $text = $p->get_trimmed_text("/$tag");
-	$text = "" unless defined $text;
-        push( @{$self->{links}}, WWW::Mechanize::Link->new( $url, $text, $token->[1]{name}, $tag ) );
+        my $text;
+	my $name;
+	if ( $tag eq "a" ) {
+	    $text = $p->get_trimmed_text("/$tag");
+	    $text = "" unless defined $text;
+	}
+	if ( $tag ne "area" ) {
+	    $name = $token->[1]{name};
+	}
+
+        push( @{$self->{links}}, WWW::Mechanize::Link->new( $url, $text, $name, $tag ) );
     }
 
     # Old extract_links() returned a value.  Carp if someone expects
