@@ -1,5 +1,29 @@
-# $Id: Changes,v 1.137 2004/09/16 04:20:07 petdance Exp $
+# $Id: Changes,v 1.144 2004/10/01 02:16:10 petdance Exp $
 Revision history for Perl extension WWW::Mechanize
+
+1.05_01 Thu Sep 30 21:04:44 CDT 2004
+
+        [FIXES]
+        * set_visible() doesn't stop setting values when it finds a zero.
+
+        [ENHANCEMENTS]
+        * WWW::Mechanize::Link has a new, easier to remember constructor
+          interface. The old one is still supported. Support for including
+          an 'alt' attribute was added, which is useful for <area> links.
+          (RT #3317). Thanks to Mark Stosberg.
+
+        * When links are extracted from <area> tags, the ALT attribute will
+          be captured become part of the WWW::Mechanize::Link object.
+          (RT #3317). Patch by Mark Stosberg. 
+
+        [INTERNALS]
+        * t/mech-dump.t is now more portable (RT #7690)
+
+        * t/local/follow.t has new tests to confirm that 'follow*' functions
+          work with characters like o-umlaut, even when the o-umlaut is
+          encoded in the HTML, but not in the call to follow(). (RT #2416)
+          By Mark Stosberg.
+
 
 1.04    Wed Sep 15 23:27:53 CDT 2004
 
@@ -533,7 +557,7 @@ Revision history for Perl extension WWW::Mechanize
         [DOCUMENTATION]
         * The package now includes the WWW::Mechanize logo in the etc/
           directory.  I have no idea what I'll do with it, but thanks
-          to Mengwong for making it!
+          to Meng Wong for making it!
 
 0.43    May 29, 2003
         [ENHANCEMENTS]
