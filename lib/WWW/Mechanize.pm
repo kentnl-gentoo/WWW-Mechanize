@@ -6,13 +6,13 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 0.76
+Version 1.00
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.123 2004/04/05 04:45:05 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.129 2004/04/10 05:30:10 petdance Exp $
 
 =cut
 
-our $VERSION = "0.76";
+our $VERSION = "1.00";
 
 =head1 SYNOPSIS
 
@@ -35,9 +35,9 @@ a history of the URLs you've visited, which can be queried and revisited.
     $mech->submit_form(
         form_number => 3,
         fields      => {
-                        username    => 'yourname',
-                        password    => 'dummy',
-                        }
+            username    => 'yourname',
+            password    => 'dummy',
+        }
     );
 
     $mech->submit_form(
@@ -104,8 +104,6 @@ use HTML::TokeParser;
 use URI::URL;
 
 our @ISA = qw( LWP::UserAgent );
-
-our %headers;
 
 =head1 Constructor and startup
 
@@ -186,6 +184,7 @@ sub new {
         onwarn      => \&WWW::Mechanize::_warn,
         onerror     => \&WWW::Mechanize::_die,
         quiet       => 0,
+        headers     => {},
     );
 
     my %passed_parms = @_;
@@ -1143,22 +1142,68 @@ sub find_all_links {
 
 =head1 Miscellaneous methods
 
-=head2 $mech->add_header(name => $value)
+=head2 $mech->add_header( name => $value [, name => $value... ] )
 
-Sets a header for the WWW::Mechanize agent to use every time it gets
-a webpage.  This is B<NOT> stored in the agent object (because if it
-were, it would disappear if you went back() past where you'd set it)
-but in the hash variable C<%WWW::Mechanize::headers>, which is a hash of
-all headers to be set.  You can manipulate this directly if you want to;
-the add_header() method is just provided as a convenience function for
-the most common case of adding a header.
+Sets HTTP headers for the agent to add or remove from the HTTP request.
+
+    $mech->add_header( Encoding => 'text/klingon' );
+
+If a I<value> is C<undef>, then that header will be removed from any
+future requests.  For example, to never send a Referer header:
+
+    $mech->add_header( Referer => undef );
+
+If you want to delete a header, use C<delete_header>.
+
+Returns the number of name/value pairs added.
+
+B<NOTE>: This method was very different in WWW::Mechanize before 1.00.
+Back then, the headers were stored in a package hash, not as a member of
+the object instance.  Calling C<add_header()> would modify the headers
+for every WWW::Mechanize object, even after your object no longer existed.
 
 =cut
 
 sub add_header {
-    my ($self, $name, $value) = @_;
-    $WWW::Mechanize::headers{$name} = $value;
+    my $self = shift;
+    my $npairs = 0;
+
+    while ( @_ ) {
+        my $key = shift;
+        my $value = shift;
+        ++$npairs;
+
+        $self->{headers}{$key} = $value;
+    }
+
+    return $npairs;
 }
+
+=head2 $mech->delete_header( name [, name ... ] )
+
+Removes HTTP headers from the agent's list of special headers.  For instance, you might need to do something like:
+
+    # Don't send a Referer for this URL
+    $mech->add_header( Referer => undef );
+
+    # Get the URL
+    $mech->get( $url );
+
+    # Back to the default behavior
+    $mech->delete_header( 'Referer' );
+
+=cut
+
+sub delete_header {
+    my $self = shift;
+
+    while ( @_ ) {
+        my $key = shift;
+
+        delete $self->{headers}{$key};
+    }
+}
+
 
 =head2 $mech->quiet(true/false)
 
@@ -1218,28 +1263,14 @@ sub request {
     my $self = shift;
     my $request = shift;
 
+    $request = $self->_modify_request( $request );
+
     if ( $request->method eq "GET" || $request->method eq "POST" ) {
         $self->_push_page_stack();
     }
 
-    $request->header( Referer => $self->{last_uri} ) if $self->{last_uri};
-    while ( my($key,$value) = each %WWW::Mechanize::headers ) {
-        $request->header( $key => $value );
-    }
     $self->{req} = $request;
     $self->{redirected_uri} = $request->uri->as_string;
-
-    # add correct Accept-Encoding header to restore compliance with
-    # http://www.freesoft.org/CIE/RFC/2068/158.htm
-    unless ($request->header('Accept-Encoding')) {
-        my $accept = 'identity';
-        # only allow "identity" for the time being
-        #eval {
-        #  require Compress::Zlib;
-        #  $accept .= ', deflate, gzip';
-        #};
-        $self->add_header( 'Accept-Encoding', $accept);
-    };
 
     my $res = $self->{res} = $self->_make_request( $request, @_ );
 
@@ -1250,15 +1281,7 @@ sub request {
     $self->{ct}      = $res->content_type || "";
     $self->{content} = $res->content;
 
-    # decode any gzipped/compressed response
-    # (currently isn't reached because we only allow 'identity')
-    my $encoding = $res->header('Content-Encoding') || "";
-    if ($encoding =~ /^(?:gzip|deflate)$/) {
-        $self->{content} = Compress::Zlib::memGunzip( $self->{content});
-        # should I delete the response header?
-    };
-
-    if ( $self->{res}->is_success ) {
+    if ( $res->is_success ) {
         $self->{uri} = $self->{redirected_uri};
         $self->{last_uri} = $self->{uri};
     } else {
@@ -1312,6 +1335,35 @@ sub _parse_html {
     $self->{forms} = [ HTML::Form->parse($self->content, $self->base) ];
     $self->{form}  = $self->{forms}->[0];
     $self->_extract_links();
+}
+
+=head2 $mech->_modify_request( $req )
+
+Modifies the request according to all the internal header mangling.
+
+=cut
+
+sub _modify_request {
+    my $self = shift;
+    my $req = shift;
+
+    # add correct Accept-Encoding header to restore compliance with
+    # http://www.freesoft.org/CIE/RFC/2068/158.htm
+    unless ( $req->header( 'Accept-Encoding' ) ) {
+        # Only allow "identity" for the time being
+        $req->header( 'Accept-Encoding', 'identity' );
+    }
+
+    $req->header( Referer => $self->{last_uri} ) if $self->{last_uri};
+    while ( my($key,$value) = each %{$self->{headers}} ) {
+        if ( defined $value ) {
+            $req->header( $key => $value );
+        } else {
+            $req->remove_header( $key );
+        }
+    }
+
+    return $req;
 }
 
 
