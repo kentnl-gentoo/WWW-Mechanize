@@ -6,13 +6,13 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 0.73_02
+Version 0.73_03
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.111 2004/03/03 05:44:44 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.116 2004/03/21 05:54:27 petdance Exp $
 
 =cut
 
-our $VERSION = "0.73_02";
+our $VERSION = "0.73_03";
 
 =head1 SYNOPSIS
 
@@ -521,7 +521,9 @@ sub form_name {
     }
 }
 
-=head2 $mech->field($name, $value, $number)
+=head2 $mech->field( $name, $value, $number )
+
+=head2 $mech->field( $name, \@values, $number )
 
 Given the name of a field, set its value to the value specified.  This
 applies to the current form (as set by the C<L<form()>> method or defaulting
@@ -540,7 +542,11 @@ sub field {
     if ($number > 1) {
         $form->find_input($name, undef, $number)->value($value);
     } else {
-        $form->value($name => $value);
+	if (ref($value) eq "ARRAY") {
+	    $form->param($name, $value);
+	} else {
+	    $form->value($name => $value);
+	}
     }
 }
 
@@ -711,6 +717,103 @@ sub click {
     for ($x, $y) { $_ = 1 unless defined; }
     my $request = $self->{form}->click($button, $x, $y);
     return $self->request( $request );
+}
+
+=head2 $mech->click_button( ... ) 
+
+Has the effect of clicking a button on a form by specifying its name,
+value, or index.  Its arguments are a list of key/value pairs.  Only
+one of name, number, or value must be specified.
+
+TODO: This function has no tests.
+
+=over 4
+
+=item * name => name
+
+Clicks the button named I<name>.
+
+=item * number => n
+
+Clicks the I<n>th button in the form.
+
+=item * value => value
+
+Clicks the button with the value I<value>.
+
+=item * x => x
+=item * y => y
+
+These arguments (optional) allow you to specify the (x,y) coordinates
+of the click.
+
+=back
+
+=cut
+
+sub click_button {
+    my $self = shift;
+    my %args = @_;
+
+    for ( keys %args ) {
+        if ( !/^(number|name|value|x|y)$/ ) {
+            $self->warn( qq{Unknown click_button_form parameter "$_"} );
+        }
+    }
+
+    for ($args{x}, $args{y}) { $_ = 1 unless defined; }
+    my $form = $self->{form};
+    my $request;
+    if ($args{name}) {
+	$request = $self->{form}->click($args{name}, $args{x}, $args{y});
+    } elsif ($args{number}) {
+	my $input = $form->find_input(undef, 'submit', $args{number});
+	$request = $input->click($form, $args{x}, $args{y});
+    } elsif ($args{value}) {
+	my $i = 1;
+	while (my $input = $form->find_input(undef, 'submit', $i)) {
+	    if ($args{value} && $args{value} eq $input->value) {
+		$request = $input->click($form, $args{x}, $args{y});
+		last;
+	    }
+	    $i++;
+	} # while
+    } # $args{value}
+
+    return $self->request( $request );
+}
+
+=head2 $mech->select($name, $value) 
+
+=head2 $mech->select($name, \@values) 
+
+Given the name of a C<select> field, set its value to the value
+specified.  If the field is not E<lt>select multipleE<gt> and the
+C<$value> is an array, only the last value will be set.  This applies
+to the current form (as set by the C<L<form()>> method or defaulting
+to the first form on the page).
+
+=cut
+
+sub select {
+    my ($self, $name, $value) = @_;
+
+    my $form = $self->{form};
+
+    my $input = $form->find_input($name);
+    if (!$input) {
+	$self->warn( qq{ Input "$name" not found } );
+	return;
+    } elsif ($input->type ne 'option') {
+	$self->warn( qq{ Input "$name" is not type "select" } );
+	return;
+    }
+
+    if (ref($value) eq "ARRAY") {
+	$form->param($name, $value);
+    } else {
+	$form->value($name => $value);
+    }
 }
 
 =head2 $mech->submit()
@@ -1189,6 +1292,19 @@ sub request {
     }
     $self->{req} = $request;
     $self->{redirected_uri} = $request->uri->as_string;
+
+    # add correct Accept-Encoding header to restore compliance with
+    # http://www.freesoft.org/CIE/RFC/2068/158.htm
+    unless ($request->header('Accept-Encoding')) {
+      my $accept = 'identity';
+      # only allow "identity" for the time being
+      #eval {
+      #  require Compress::Zlib;
+      #  $accept .= ', deflate, gzip';
+      #};
+      $self->add_header( 'Accept-Encoding', $accept);
+    };
+
     my $res = $self->{res} = $self->_make_request( $request, @_ );
 
     # These internal hash elements should be dropped in favor of
@@ -1197,6 +1313,15 @@ sub request {
     $self->{base}    = $res->base;
     $self->{ct}      = $res->content_type || "";
     $self->{content} = $res->content;
+
+    # decode any gzipped/compressed response
+    # (currently isn't reached because we only allow 'identity')
+    my $encoding = $res->header('Content-Encoding') || "";
+    if ($encoding =~ /^(?:gzip|deflate)$/) {
+      $self->{content} = Compress::Zlib::memGunzip( $self->{ content });
+      # should I delete the response header?
+    };
+
     if ( $self->{res}->is_success ) {
         $self->{uri} = $self->{redirected_uri};
         $self->{last_uri} = $self->{uri};
