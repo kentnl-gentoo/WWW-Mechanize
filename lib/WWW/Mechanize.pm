@@ -6,13 +6,13 @@ WWW::Mechanize - automate interaction with websites
 
 =head1 VERSION
 
-Version 0.47
+Version 0.48
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.10 2003/06/22 03:49:38 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.13 2003/06/22 18:46:56 petdance Exp $
 
 =cut
 
-our $VERSION = "0.47";
+our $VERSION = "0.48";
 
 =head1 SYNOPSIS
 
@@ -171,15 +171,14 @@ is deprecated and subject to change in the future.
 =cut
 
 sub get {
-    my ($self, $uri) = @_;
+    my $self = shift;
+    my $uri = shift;
 
     $uri = $self->{base}
 	    ? URI->new_abs( $uri, $self->{base} )
 	    : URI->new( $uri );
 
-    my $request = HTTP::Request->new( GET => $uri );
-
-    return $self->request( $request );
+    return $self->SUPER::get( $uri, @_ );
 }
 
 =head2 C<< $a->reload() >>
@@ -811,16 +810,14 @@ exact match.  This is similar to the C<text> parm.
 Matches the URL of the link against I<regex>.  This is similar to
 the C<text_regex> parm.
 
-=item * n => I<number or "all">
+=item * n => I<number>
 
-Matches against the I<n>th link.  If I<n> is the string "all", then
-all links matching the criteria are returned.
+Matches against the I<n>th link.
 
 The C<n> parms can be combined with the C<text*> or C<url*> parms
 as a numeric modifier.  For example, 
 C<< text => "download", n => 3 >> finds the 3rd link which has the
-exact text "download", and
-C<< text => "download", n => "all" >> finds all download links.
+exact text "download".
 
 =back
 
@@ -838,7 +835,6 @@ sub find_link {
 
     return unless @links ;
 
-    my @matches;
     my $match;
     my $arg;
     my $wantall = ( $parms{n} eq "all" );
@@ -867,16 +863,45 @@ sub find_link {
     }
 
     my $nmatches = 0;
+    my @matches;
     for my $link ( @links ) {
 	if ( $match->($link) ) {
-	    push( @matches, $link );
-	    return $link if !$wantall && (scalar @matches >= $parms{n});
+	    if ( $wantall ) {
+		push( @matches, $link );
+	    } else {
+		++$nmatches;
+		return $link if $nmatches >= $parms{n};
+	    }
 	}
     } # for @links
 
-    return @matches if $wantall;
+    if ( $wantall ) {
+	return @matches if wantarray;
+	return \@matches;
+    }
+
     return;
 } # find_link
+
+=head2 C<< $a->find_all_links( ... ) >>
+
+Returns all the links on the current page that match the criteria.
+The method for specifying link criteria is the same as in
+C<find_link()>.  Each of the links returned is in the same format
+as in C<find_link()>.
+
+In list context, C<find_all_links()> returns a list of the links.
+Otherwise, it returns a reference to the list of links.
+
+C<find_all_links()> with no parameters returns all links in the
+page.
+
+=cut
+
+sub find_all_links {
+    my $self = shift;
+    return $self->find_link( @_, n=>'all' );
+}
 
 
 =head1 Miscellaneous methods

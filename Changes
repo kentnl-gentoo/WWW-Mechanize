@@ -1,10 +1,20 @@
-# $Id: Changes,v 1.10 2003/06/22 03:49:38 petdance Exp $
+# $Id: Changes,v 1.13 2003/06/22 18:46:52 petdance Exp $
 Revision history for Perl extension WWW::Mechanize
+
+0.48	June 22, 2003
+	[ENHANCEMENTS]
+	* Added find_all_links() as the counterpart to find_link().
+
+	[FIXES]
+	* get() wasn't passing through its parms to LWP::UserAgent::get(),
+	  so you couldn't use the :content_file parm.  Now it
+	  behaves like a good little subclass.
 
 0.47	June 21, 2003
 	[ENHANCEMENTS]
 	* find_link() now lets you pass n=>"all" to get back a list
-	  of all links that match the other criteria.
+	  of all links that match the other criteria.  NOTE: Outdated!  See
+	  v0.48 for the preferred way.
 	* find_link() and follow_link() now complain if you pass
 	  invalid parms to them.
 
