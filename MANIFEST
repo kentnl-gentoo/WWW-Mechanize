@@ -4,6 +4,7 @@ MANIFEST
 etc/www-mechanize-logo.png
 lib/WWW/Mechanize.pm
 lib/WWW/Mechanize/Examples.pod
+script/mech-forms
 t/00.load.t
 t/99.pod.t
 t/add_header.t
@@ -31,4 +32,5 @@ t/reload-local.t
 t/reload.t
 t/submit-local.t
 t/submit.t
+t/tick.html
 t/tick.t
