@@ -1,5 +1,6 @@
 use ExtUtils::MakeMaker qw( WriteMakefile prompt );
 use ExtUtils::Command qw( touch rm_f );
+use File::Spec;
 use strict;
 
 use constant FLAG_SKIPMECHDUMP => File::Spec->catfile( "t", "SKIP-MECH-DUMP" );
@@ -52,7 +53,7 @@ my $parms = {
                         'URI::file'         => 0,
 			},
     test	    => { TESTS => join( " ", @tests ) },
-    clean	    => { FILES => FLAG_SKIPMECHDUMP },
+    clean	    => { FILES => join( " ", FLAG_SKIPMECHDUMP, 'WWW-Mechanize-0*' ) },
 };
 
 if ( prompt( "Do you want to install the mech-dump utility?", "y" ) =~ /^y/i ) {

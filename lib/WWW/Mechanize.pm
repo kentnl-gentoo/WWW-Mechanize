@@ -6,13 +6,13 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 0.65
+Version 0.66
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.80 2003/11/10 06:14:26 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.82 2003/11/13 20:38:18 petdance Exp $
 
 =cut
 
-our $VERSION = "0.65";
+our $VERSION = "0.66";
 
 =head1 SYNOPSIS
 
@@ -93,10 +93,36 @@ link if your bug isn't already reported.
 
 =head1 OTHER DOCUMENTATION
 
-=head2 I<Spidering Hacks>
+=head2 I<Spidering Hacks>, by Kevin Hemenway and Tara Calishain
 
-I<Spidering Hacks> has three hacks by Andy Lester that discuss Mechanize.
-See L<http://www.oreilly.com/catalog/spiderhks/> for more info.
+I<Spidering Hacks> from O'Reilly
+(L<http://www.oreilly.com/catalog/spiderhks/>) is a great book for anyone
+wanting to know more about screen-scraping and spidering.
+
+There are three Mech-specific hacks by Andy Lester:
+
+=over 4
+
+=item 21 WWW::Mechanize 101
+
+=item 36 Downloading Images from Webshots
+
+=item 44 Archiving Yahoo! Groups Messages with WWW::Yahoo::Groups
+
+=item 
+
+=back
+
+and two Mech hacks from Chris Elthek:
+
+=over 4
+
+=item 22 Scraping with WWW::Mechanize
+
+=item 73 Scraping TV Listings
+
+=back
+
 
 =head2 Online resources
 
