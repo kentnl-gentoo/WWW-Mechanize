@@ -6,6 +6,7 @@ use Test::More tests => 57;
 use URI::file;
 
 BEGIN {
+    delete @ENV{qw(PATH IFS CDPATH ENV BASH_ENV)};  # Placates taint-unsafe Cwd.pm in 5.6.1
     use_ok( 'WWW::Mechanize' );
 }
 
@@ -100,9 +101,11 @@ is( $x->text, "News", "First CNN news text" );
 
 AREA_CHECKS: {
     my @wanted_links = (
-	[ "http://www.cnn.com/", "CNN", undef, "a" ],
-	[ "http://www.cnn.com/", "News", "Fred", "a" ],
-	[ "http://www.cnn.com/area", undef, undef, "area" ],
+        [ "http://www.cnn.com/", "CNN", undef, "a" ],
+        [ "http://www.cnn.com/", "News", "Fred", "a" ],
+        # Can someone confirm that I just fixed a bug here, and
+        # area tags /should/ have names? -mls
+        [ "http://www.cnn.com/area", undef, 'Marty', "area" ],
     );
     my @links = $mech->find_all_links( url_regex => qr/cnn\.com/ );
     @{$_} = @{$_}[0..3] for @links;

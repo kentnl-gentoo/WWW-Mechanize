@@ -6,13 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.05_02
-
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.143 2004/10/02 21:56:45 petdance Exp $
+Version 1.05_03
 
 =cut
 
-our $VERSION = "1.05_02";
+our $VERSION = "1.05_03";
 
 =head1 SYNOPSIS
 
@@ -490,13 +488,98 @@ sub field {
     }
 }
 
+=head2 $mech->select($name, $value)
+
+=head2 $mech->select($name, \@values)
+
+Given the name of a C<select> field, set its value to the value
+specified.  If the field is not E<lt>select multipleE<gt> and the
+C<$value> is an array, only the B<first> value will be set.  [Note:
+the documentation previously claimed that only the last value would
+be set, but this was incorrect.]  Passing C<$value> as a hash with
+an C<n> key selects an item by number (e.g. C<{n => 3> or C<{n => [2,4]}>).
+The numbering starts at 1.  This applies to the current form (as set by the
+C<L<form()>> method or defaulting to the first form on the page).
+
+Returns 1 on successfully setting the value. On failure, returns
+undef and calls C<$self->warn()> with an error message.
+
+=cut
+
+sub select {
+    my ($self, $name, $value) = @_;
+
+    my $form = $self->{form};
+
+    my $input = $form->find_input($name);
+    if (!$input) {
+        $self->warn( qq{ Input "$name" not found } );
+        return;
+    } elsif ($input->type ne 'option') {
+        $self->warn( qq{ Input "$name" is not type "select" } );
+        return;
+    }
+
+    # For $mech->select($name, {n => 3}) or $mech->select($name, {n => [2,4]}),
+    # transform the 'n' number(s) into value(s) and put it in $value.
+    if (ref($value) eq "HASH") {
+        for (keys %$value) {
+            $self->warn(qq{Unknown select value parameter "$_"})
+              unless $_ eq 'n';
+        }
+
+        if (defined($value->{n})) {
+            my @inputs = $form->find_input($name, 'option');
+            my @values = ();
+            # distinguish between multiple and non-multiple selects
+            # (see INPUTS section of `perldoc HTML::Form`)
+            if (@inputs == 1) {
+                @values = $inputs[0]->possible_values();
+            } else {
+                foreach my $input (@inputs) {
+                    my @possible = $input->possible_values();
+                    push @values, pop @possible;
+                }
+            }
+
+            my $n = $value->{n};
+            if (ref($n) eq 'ARRAY') {
+                $value = [];
+                for (@$n) {
+                    unless (/^\d+$/) {
+                        $self->warn(qq{"n" value "$_" is not a positive integer});
+                        return;
+                    }
+                    push @$value, $values[$_ - 1];  # might be undef
+                }
+            } elsif (!ref($n) && $n =~ /^\d+$/) {
+                $value = $values[$n - 1];           # might be undef
+            } else {
+                $self->warn('"n" value is not a positive integer or an array ref');
+                return;
+            }
+        } else {
+            $self->warn('Hash value is invalid');
+            return;
+        }
+    }
+
+    if (ref($value) eq "ARRAY") {
+        $form->param($name, $value);
+        return 1;
+    } else {
+        $form->value($name => $value);
+        return 1;
+    }
+}
+
 =head2 $mech->set_fields( $name => $value ... )
 
-This method sets multiple fields of a form. It takes a list of field
-name and value pairs. If there is more than one field with the same
-name, the first one found is set. If you want to select which of the
-duplicate field to set, use a value which is an anonymous array which
-has the field value and its number as the 2 elements.
+This method sets multiple fields of the current form. It takes a list
+of field name and value pairs. If there is more than one field with
+the same name, the first one found is set. If you want to select which
+of the duplicate field to set, use a value which is an anonymous array
+which has the field value and its number as the 2 elements.
 
         # set the second foo field
         $mech->set_fields( $name => [ 'foo', 2 ] ) ;
@@ -524,39 +607,13 @@ sub set_fields {
     } # while
 } # set_fields()
 
-
-=head2 C<< $mech->value( $name, $number ) >>
-
-Given the name of a field, return its value. This applies to the current
-form (as set by the C<form()> method or defaulting to the first form on
-the page).
-
-The option I<$number> parameter is used to distinguish between two fields
-with the same name.  The fields are numbered from 1.
-
-=cut
-
-sub value {
-    my $self = shift;
-    my $name = shift;
-    my $number = shift || 1;
-
-    my $form = $self->{form};
-    if ( $number > 1 ) {
-        return $form->find_input( $name, undef, $number )->value();
-    } else {
-        return $form->value( $name );
-    }
-} # value
-
-
 =head2 $mech->set_visible( @criteria )
 
-This method sets fields of a form without having to know their
-names.  So if you have a login screen that wants a username and
-password, you do not have to fetch the form and inspect the source
-(or use the F<mech-dump> utility, installed with WWW::Mechanize)
-to see what the field names are; you can just say
+This method sets fields of the current form without having to know
+their names.  So if you have a login screen that wants a username and
+password, you do not have to fetch the form and inspect the source (or
+use the F<mech-dump> utility, installed with WWW::Mechanize) to see
+what the field names are; you can just say
 
     $mech->set_visible( $username, $password ) ;
 
@@ -593,6 +650,7 @@ sub set_visible {
     my $form = $self->current_form;
     my @inputs = $form->inputs;
 
+	my $num_set = 0;
     for my $value ( @_ ) {
         if ( ref $value eq 'ARRAY' ) {
            my ( $type, $value ) = @$value;
@@ -600,6 +658,7 @@ sub set_visible {
                next if $input->type eq 'hidden';
                if ( $input->type eq $type ) {
                    $input->value( $value );
+				   $num_set++;
                    last;
                }
            } # while
@@ -607,10 +666,14 @@ sub set_visible {
            while ( my $input = shift @inputs ) {
                next if $input->type eq 'hidden';
                $input->value( $value );
+			   $num_set++;
+			   # Does this 'last' do anything useful? -mls
                last;
            } # while
        }
     } # for
+
+	return $num_set; 
 
 } # set_visible()
 
@@ -661,13 +724,41 @@ sub untick {
     shift->tick(shift,shift,undef);
 }
 
+=head2 C<< $mech->value( $name, $number ) >>
+
+Given the name of a field, return its value. This applies to the current
+form (as set by the C<form()> method or defaulting to the first form on
+the page).
+
+The option I<$number> parameter is used to distinguish between two fields
+with the same name.  The fields are numbered from 1.
+
+If the field is of type file (file upload field), the value is always
+cleared to prevent remote sites from downloading your local files.
+To upload a file, specify its file name explicitly.
+
+=cut
+
+sub value {
+    my $self = shift;
+    my $name = shift;
+    my $number = shift || 1;
+
+    my $form = $self->{form};
+    if ( $number > 1 ) {
+        return $form->find_input( $name, undef, $number )->value();
+    } else {
+        return $form->value( $name );
+    }
+} # value
+
 =head1 FORM SUBMISSION METHODS
 
 =head2 $mech->click( $button [, $x, $y] )
 
-Has the effect of clicking a button on a form.  The first argument
-is the name of the button to be clicked.  The second and third
-arguments (optional) allow you to specify the (x,y) coordinates
+Has the effect of clicking a button on the current form.  The first
+argument is the name of the button to be clicked.  The second and
+third arguments (optional) allow you to specify the (x,y) coordinates
 of the click.
 
 If there is only one button on the form, C<< $mech->click() >> with
@@ -684,27 +775,35 @@ sub click {
     return $self->request( $request );
 }
 
-=head2 $mech->click_button( ... ) 
+=head2 $mech->click_button( ... )
 
-Has the effect of clicking a button on a form by specifying its name,
-value, or index.  Its arguments are a list of key/value pairs.  Only
-one of name, number, or value must be specified.
-
-TODO: This function has no tests.
+Has the effect of clicking a button on the current form by specifying
+its name, value, or index.  Its arguments are a list of key/value
+pairs.  Only one of name, number, input or value must be specified in
+the keys.
 
 =over 4
 
 =item * name => name
 
-Clicks the button named I<name>.
+Clicks the button named I<name> in the current form.
 
 =item * number => n
 
-Clicks the I<n>th button in the form.
+Clicks the I<n>th button in the current form. Numbering starts at 1.
 
 =item * value => value
 
-Clicks the button with the value I<value>.
+Clicks the button with the value I<value> in the current form.
+
+=item * input => $inputobject
+
+Clicks on the button referenced by $inputobject, an instance of
+L<HTML::Form::SubmitInput> obtained e.g. from
+
+  $mech->current_form()->find_input(undef, "submit")
+
+$inputobject must belong to the current form.
 
 =item * x => x
 =item * y => y
@@ -721,8 +820,8 @@ sub click_button {
     my %args = @_;
 
     for ( keys %args ) {
-        if ( !/^(number|name|value|x|y)$/ ) {
-            $self->warn( qq{Unknown click_button_form parameter "$_"} );
+        if ( !/^(number|name|value|input|x|y)$/ ) {
+            $self->warn( qq{Unknown click_button parameter "$_"} );
         }
     }
 
@@ -734,6 +833,8 @@ sub click_button {
     } elsif ( $args{number} ) {
         my $input = $form->find_input( undef, 'submit', $args{number} );
         $request = $input->click( $form, $args{x}, $args{y} );
+    } elsif ( $args{input} ) {
+        $request = $args{input}->click( $form, $args{x}, $args{y} );
     } elsif ( $args{value} ) {
         my $i = 1;
         while ( my $input = $form->find_input(undef, 'submit', $i) ) {
@@ -746,39 +847,6 @@ sub click_button {
     } # $args{value}
 
     return $self->request( $request );
-}
-
-=head2 $mech->select($name, $value) 
-
-=head2 $mech->select($name, \@values) 
-
-Given the name of a C<select> field, set its value to the value
-specified.  If the field is not E<lt>select multipleE<gt> and the
-C<$value> is an array, only the last value will be set.  This applies
-to the current form (as set by the C<L<form()>> method or defaulting
-to the first form on the page).
-
-=cut
-
-sub select {
-    my ($self, $name, $value) = @_;
-
-    my $form = $self->{form};
-
-    my $input = $form->find_input($name);
-    if (!$input) {
-        $self->warn( qq{ Input "$name" not found } );
-        return;
-    } elsif ($input->type ne 'option') {
-        $self->warn( qq{ Input "$name" is not type "select" } );
-        return;
-    }
-
-    if (ref($value) eq "ARRAY") {
-        $form->param($name, $value);
-    } else {
-        $form->value($name => $value);
-    }
 }
 
 =head2 $mech->submit()
@@ -910,10 +978,6 @@ Returns the content type of the response.
 
 Returns the base URI for the current response
 
-=head2 $mech->content()
-
-Returns the content for the response
-
 =head2 $mech->forms()
 
 When called in a list context, returns a list of the forms found in
@@ -945,7 +1009,6 @@ sub response {      my $self = shift; return $self->{res}; }
 sub status {        my $self = shift; return $self->{status}; }
 sub ct {            my $self = shift; return $self->{ct}; }
 sub base {          my $self = shift; return $self->{base}; }
-sub content {       my $self = shift; return $self->{content}; }
 sub current_form {  my $self = shift; return $self->{form}; }
 sub is_html {       my $self = shift; return defined $self->{ct} && ($self->{ct} eq "text/html"); }
 
@@ -980,6 +1043,69 @@ sub title {
 }
 
 =head1 CONTENT-HANDLING METHODS
+
+=head2 $mech->content(...)
+
+Returns the content that the mech uses internally for the last page
+fetched. Ordinarily this is the same as $mech->response()->content(),
+but this may differ for HTML documents if L</update_html> is
+overloaded (in which case the value passed to the base-class
+implementation of same will be returned), and/or extra named arguments
+are passed to I<content()>:
+
+=over 2
+
+=item I<< $mech->content(format => "text") >>
+
+Returns a text-only version of the page, with all HTML markup
+stripped. This feature requires I<HTML::TreeBuilder> to be installed,
+or a fatal error will be thrown.
+
+=item I<< $mech->content(base_href => undef) >>
+
+=item I<< $mech->content(base_href => $base_href) >>
+
+Returns the HTML document, modified to contain a C<< <base
+href="$base_href"> >> mark-up in the header. $base_href is C<<
+$mech->base() >> if not specified. This is handy to pass the HTML to
+e.g. L<HTML::Display>.
+
+=back
+
+Passing arguments to content() if the current document is not HTML has
+no effect now (i.e. the return value is the same as
+$self->response()->content()). This may change in the future, but will 
+likely be backwards-compatible when it does. 
+
+=cut
+
+sub content {
+	my $self = shift;
+	my $content = $self->{content};
+	return $content unless $self->is_html;
+
+	while(my ($cmd, $arg) = splice(@_, 0, 2)) {
+		if ($cmd eq 'format') {
+			if ($arg eq 'text') {
+				require HTML::TreeBuilder;
+				my $tree = HTML::TreeBuilder->new();
+				$tree->parse($content);
+				$tree->eof();
+				$tree->elementify(); # just for safety
+				$content = $tree->as_text();
+			} else {
+				$self->die( qq{Unknown format parameter "$arg"} );
+			};
+		} elsif ($cmd eq 'base_href') {
+			$arg ||= $self->base;
+			$content=~s/<head>/<head>\n<base href="$arg">/;
+		} else {
+			$self->die( qq{Unknown named argument "$cmd"} );
+		}
+	}
+
+	return $content;
+}
 
 =head2 $mech->find_link()
 
@@ -1040,14 +1166,8 @@ more than one tag, as in:
 
     $mech->find_link( tag_regex => qr/^(a|frame)$/ );
 
-=item * C<< n => number >>
-
-Matches against the I<n>th link.
-
-The C<n> parms can be combined with the other parms above as a numeric
-modifier.  For example,
-C<< text => "download", n => 3 >> finds the 3rd link which has the
-exact text "download".
+The tags and attributes looked at are defined below, at
+L<$mech->find_link() : link format>.
 
 =back
 
@@ -1078,6 +1198,8 @@ The links come from the following:
 =item C<< <FRAME SRC=...> >>
 
 =item C<< <IFRAME SRC=...> >>
+
+=item C<< <META CONTENT=...> >>
 
 =back
 
@@ -1119,30 +1241,10 @@ sub find_link {
 
     my @links = $self->links or return;
 
-    my @conditions;
-    push @conditions, q/ $_[0]->[0] eq $parms{url} /                                if defined $parms{url};
-    push @conditions, q/ $_[0]->[0] =~ $parms{url_regex} /                          if defined $parms{url_regex};
-    push @conditions, q/ $_[0]->url_abs eq $parms{url_abs} /                        if defined $parms{url_abs};
-    push @conditions, q/ $_[0]->url_abs =~ $parms{url_abs_regex} /                  if defined $parms{url_abs_regex};
-    push @conditions, q/ defined($_[0]->[1]) and $_[0]->[1] eq $parms{text} /       if defined $parms{text};
-    push @conditions, q/ defined($_[0]->[1]) and $_[0]->[1] =~ $parms{text_regex} / if defined $parms{text_regex};
-    push @conditions, q/ defined($_[0]->[2]) and $_[0]->[2] eq $parms{name} /       if defined $parms{name};
-    push @conditions, q/ defined($_[0]->[2]) and $_[0]->[2] =~ $parms{name_regex} / if defined $parms{name_regex};
-    push @conditions, q/ $_[0]->[3] and $_[0]->[3] eq $parms{tag} /                 if defined $parms{tag};
-    push @conditions, q/ $_[0]->[3] and $_[0]->[3] =~ $parms{tag_regex} /           if defined $parms{tag_regex};
-
-    my $matchfunc;
-    if ( @conditions ) {
-        local $" = ") && (";
-        $matchfunc = eval "sub { return 1 if (@conditions); return; }";
-    } else {
-        $matchfunc = sub{1};
-    }
-
     my $nmatches = 0;
     my @matches;
     for my $link ( @links ) {
-        if ( $matchfunc->($link) ) {
+        if ( _match_any_parms($link,\%parms) ) {
             if ( $wantall ) {
                 push( @matches, $link );
             } else {
@@ -1159,6 +1261,31 @@ sub find_link {
 
     return;
 } # find_link
+
+# Used by find_links to check for matches
+# The logic is such that ALL parm criteria that are given must match
+sub _match_any_parms {
+	my ($link,$p_ref) = @_;
+
+	# No conditions, Anything matches
+	return 1 unless keys %$p_ref;
+
+	return undef if (defined $p_ref->{url}          and not ($link->[0] eq $p_ref->{url} )                                );
+    return undef if (defined $p_ref->{url_regex}    and not ($link->[0] =~ $p_ref->{url_regex} )                          );
+    return undef if (defined $p_ref->{url_abs}      and not ($link->url_abs eq $p_ref->{url_abs} )                        );
+    return undef if (defined $p_ref->{url_abs_regex}and not ($link->url_abs =~ $p_ref->{url_abs_regex} )                  );
+    return undef if (defined $p_ref->{text}         and not (defined($link->[1]) and $link->[1] eq $p_ref->{text} )       );
+    return undef if (defined $p_ref->{text_regex}   and not (defined($link->[1]) and $link->[1] =~ $p_ref->{text_regex} ) );
+    return undef if (defined $p_ref->{name}         and not (defined($link->[2]) and $link->[2] eq $p_ref->{name} )       );
+    return undef if (defined $p_ref->{name_regex}   and not (defined($link->[2]) and $link->[2] =~ $p_ref->{name_regex} ) );
+    return undef if (defined $p_ref->{tag}          and not ($link->[3] and $link->[3] eq $p_ref->{tag} )                 );
+    return undef if (defined $p_ref->{tag_regex}    and not ($link->[3] and $link->[3] =~ $p_ref->{tag_regex} )           );
+
+	# Success: everything that was defined passed. 
+	return 1;
+
+}
+
 
 =head2 $mech->find_all_links( ... )
 
@@ -1320,7 +1447,7 @@ sub redirect_ok {
 =head2 $mech->request( $request [, $arg [, $size]])
 
 Overloaded version of C<request()> in L<LWP::UserAgent>.  Performs
-the actual request.  Normally, if you're using WWW::Mechanize, it'd
+the actual request.  Normally, if you're using WWW::Mechanize, it's
 because you don't want to deal with this level of stuff anyway.
 
 Note that C<$request> will be modified.
@@ -1349,7 +1476,6 @@ sub request {
     $self->{status}  = $res->code;
     $self->{base}    = $res->base;
     $self->{ct}      = $res->content_type || "";
-    $self->{content} = $res->content;
 
     if ( $res->is_success ) {
         $self->{uri} = $self->{redirected_uri};
@@ -1360,8 +1486,12 @@ sub request {
         }
     }
 
-    $self->_reset_page;
-    $self->_parse_html if $self->is_html;
+	$self->_reset_page;
+	if ($self->is_html) {
+		$self->update_html($res->content);
+	} else {
+		$self->{content} = $res->content;
+	}
 
     return $res;
 } # request
@@ -1369,7 +1499,7 @@ sub request {
 =head2 $mech->update_html( $html )
 
 Allows you to replace the HTML that the mech has found.  Updates the
-forms and links.
+forms and links parse-trees that the mech uses internally.
 
 Say you have a page that you know has malformed output, and you want to
 update it so the links come out correctly:
@@ -1377,6 +1507,29 @@ update it so the links come out correctly:
     my $html = $mech->content;
     $html =~ s[</option>.?.?.?</td>][</option></select></td>]isg;
     $mech->update_html( $html );
+
+This method is also used internally by the mech itself to update its
+own HTML content when loading a page. This means that if you would
+like to I<systematically> perform the above HTML substitution, you
+would overload I<update_html> in a subclass thusly:
+
+   package MyMech;
+   use base 'WWW::Mechanize';
+
+   sub update_html {
+       my ($self, $html) = @_;
+	   $html =~ s[</option>.?.?.?</td>][</option></select></td>]isg;
+	   $self->WWW::Mechanize::update_html( $html );
+   }
+
+If you do this, then the mech will use the tidied-up HTML instead of
+the original both when parsing for its own needs, and for returning to
+you through L</content>.
+
+Overloading this method is also the recommended way of implementing
+extra validation steps (e.g. link checkers) for every HTML page
+received.  L</warn> and L</die> would then come in handy to signal
+validation errors.
 
 =cut
 
@@ -1387,24 +1540,24 @@ sub update_html {
     $self->_reset_page;
     $self->{ct} = 'text/html';
     $self->{content} = $html;
-    $self->_parse_html;
 
-    return;
-}
-
-=head2 $mech->_parse_html()
-
-An internal method that initializes forms and links given a HTML document.
-If you need to override this in your subclass, or call it multiple times,
-go ahead.
-
-=cut
-
-sub _parse_html {
-    my $self = shift;
-    $self->{forms} = [ HTML::Form->parse($self->content, $self->base) ];
+   $self->{forms} = [ HTML::Form->parse($html, $self->base) ];
+    if (@{ $self->{forms} }) {
+        for my $form (@{ $self->{forms} }) {
+            for my $input ($form->inputs) {
+                 if ($input->type eq 'file') {
+                     $input->value( undef );
+                 }
+            }
+       }
+    }
     $self->{form}  = $self->{forms}->[0];
     $self->_extract_links();
+
+    $self->_parse_html(); #For compatibility with folks that used to
+	# overload that method.
+
+    return;
 }
 
 =head2 $mech->_modify_request( $req )
@@ -1520,6 +1673,17 @@ sub form {
     return $arg =~ /^\d+$/ ? $self->form_number($arg) : $self->form_name($arg);
 }
 
+=head2 $mech->_parse_html()
+
+An internal method that initializes forms and links given a HTML
+document.  Overriding this in your subclass is B<DEPRECATED>, better
+override L</update_html> instead in your new code.
+
+=cut
+
+sub _parse_html { }
+
+
 =head1 INTERNAL-ONLY METHODS
 
 These methods are only used internally.  You probably don't need to
@@ -1548,6 +1712,8 @@ property with L<WWW::Mechanize::Link> objects.
 
 =cut
 
+# NOTE: When this list is updated, also update the docs
+# for find_links() : link format mentions it as well
 my %urltags = (
     a => "href",
     area => "href",
@@ -1567,12 +1733,11 @@ sub _extract_links {
 
     while (my $token = $p->get_tag( keys %urltags )) {
         my $tag = $token->[0];
-		my $attrs = $token->[1];
+        my $attrs = $token->[1];
         my $url = $attrs->{$urltags{$tag}};
 
         my $text;
         my $name;
-		my $alt;
         if ( $tag eq "a" ) {
             $text = $p->get_trimmed_text("/$tag");
             $text = "" unless defined $text;
@@ -1583,14 +1748,12 @@ sub _extract_links {
             }
         } # a
 
-		# Of the tags we extract from, only 'AREA' has an alt tag
-		if ($tag eq 'area') {
-			$alt = $attrs->{alt};
-		}
-		# The rest should have a 'name' attribute.
-		else  {
-            $name = $attrs->{name};
-        }
+        # Of the tags we extract from, only 'AREA' has an alt tag
+        # The rest should have a 'name' attribute.
+		# ... but we don't do anything with that bit of wisdom now. 
+
+        $name = $attrs->{name};
+
         if ( $tag eq "meta" ) {
             my $equiv = $attrs->{"http-equiv"};
             my $content = $attrs->{"content"};
@@ -1605,13 +1768,13 @@ sub _extract_links {
 
         next unless defined $url;   # probably just a name link or <AREA NOHREF...>
         push( @{$self->{links}}, WWW::Mechanize::Link->new({
-				url => $url,
-				text => $text,
-				name => $name,
-				tag => $tag,
-				base => $self->base,
-				alt => $alt,
-			}) );
+            url  => $url,
+            text => $text,
+            name => $name,
+            tag  => $tag,
+            base => $self->base,
+            attrs => $attrs,
+        }) );
     } # while
 
     # Old extract_links() returned a value.  Carp if someone expects
@@ -1871,6 +2034,10 @@ Max Maischein,
 Meng Wong,
 Prakash Kailasa,
 Abigail,
+Jan Pazdziora,
+Dominique Quatravaux,
+Scott Lanning,
+Rob Casey,
 and the late great Iain Truskett.
 
 =cut
