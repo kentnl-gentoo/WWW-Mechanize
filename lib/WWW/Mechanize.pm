@@ -6,13 +6,13 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 0.73_03
+Version 0.74
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.116 2004/03/21 05:54:27 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.119 2004/03/23 05:22:40 petdance Exp $
 
 =cut
 
-our $VERSION = "0.73_03";
+our $VERSION = "0.74";
 
 =head1 SYNOPSIS
 
@@ -89,80 +89,6 @@ The CPAN documentation page for Mechanize.
 
 The RT queue for bugs & enhancements in Mechanize.  Click the "Report bug"
 link if your bug isn't already reported.
-
-=back
-
-=head1 OTHER DOCUMENTATION
-
-=head2 I<Spidering Hacks>, by Kevin Hemenway and Tara Calishain
-
-I<Spidering Hacks> from O'Reilly
-(L<http://www.oreilly.com/catalog/spiderhks/>) is a great book for anyone
-wanting to know more about screen-scraping and spidering.
-
-There are six hacks that use Mech or a Mech derivative:
-
-=over 4
-
-=item #21 WWW::Mechanize 101
-
-=item #22 Scraping with WWW::Mechanize
-
-=item #36 Downloading Images from Webshots
-
-=item #44 Archiving Yahoo! Groups Messages with WWW::Yahoo::Groups
-
-=item #64 Super Author Searching
-
-=item #73 Scraping TV Listings
-
-=back
-
-The book was also positively reviewed on Slashdot:
-L<http://books.slashdot.org/article.pl?sid=03/12/11/2126256>
-
-=head2 Online resources
-
-=over 4
-
-=item * WWW::Mechanize Development mailing list
-
-Hosted at Sourceforge, this is where the contributors to Mech
-discuss things.  L<http://sourceforge.net/mail/?group_id=83309>
-
-=item * LWP mailing list
-
-The LWP mailing list is at
-L<http://lists.perl.org/showlist.cgi?name=libwww>, and is more
-user-oriented and well-populated than the WWW::Mechanize Development
-list.  This is a good list for Mech users, since LWP is the basis
-for Mech.
-
-=item * L<WWW::Mechanize::Examples>
-
-A random array of examples submitted by users, included with the
-Mechanize distribution.
-
-=item * L<http://www.perl.com/pub/a/2003/01/22/mechanize.html>
-
-Chris Ball's article about using WWW::Mechanize for scraping TV
-listings.
-
-=item * L<http://www.stonehenge.com/merlyn/LinuxMag/col47.html>
-
-Randal Schwartz's article on scraping Yahoo News for images.  It's
-already out of date: He manually walks the list of links hunting
-for matches, which wouldn't have been necessary if the C<find_link()>
-method existed at press time.
-
-=item * L<http://www.perladvent.org/2002/16th/>
-
-WWW::Mechanize on the Perl Advent Calendar, by Mark Fowler.
-
-=item * L<http://www.linux-magazin.de/Artikel/ausgabe/2004/03/perl/perl.html>
-
-Michael Schilli's article on Mech and L<WWW::Mechanize::Shell> for the
-German magazine I<Linux Magazin>.
 
 =back
 
@@ -542,11 +468,11 @@ sub field {
     if ($number > 1) {
         $form->find_input($name, undef, $number)->value($value);
     } else {
-	if (ref($value) eq "ARRAY") {
-	    $form->param($name, $value);
-	} else {
-	    $form->value($name => $value);
-	}
+        if ( ref($value) eq "ARRAY" ) {
+            $form->param($name, $value);
+        } else {
+            $form->value($name => $value);
+        }
     }
 }
 
@@ -764,20 +690,20 @@ sub click_button {
     for ($args{x}, $args{y}) { $_ = 1 unless defined; }
     my $form = $self->{form};
     my $request;
-    if ($args{name}) {
-	$request = $self->{form}->click($args{name}, $args{x}, $args{y});
-    } elsif ($args{number}) {
-	my $input = $form->find_input(undef, 'submit', $args{number});
-	$request = $input->click($form, $args{x}, $args{y});
-    } elsif ($args{value}) {
-	my $i = 1;
-	while (my $input = $form->find_input(undef, 'submit', $i)) {
-	    if ($args{value} && $args{value} eq $input->value) {
-		$request = $input->click($form, $args{x}, $args{y});
-		last;
-	    }
-	    $i++;
-	} # while
+    if ( $args{name} ) {
+        $request = $form->click( $args{name}, $args{x}, $args{y} );
+    } elsif ( $args{number} ) {
+        my $input = $form->find_input( undef, 'submit', $args{number} );
+        $request = $input->click( $form, $args{x}, $args{y} );
+    } elsif ( $args{value} ) {
+        my $i = 1;
+        while ( my $input = $form->find_input(undef, 'submit', $i) ) {
+            if ( $args{value} && ($args{value} eq $input->value) ) {
+                $request = $input->click( $form, $args{x}, $args{y} );
+                last;
+            }
+            $i++;
+        } # while
     } # $args{value}
 
     return $self->request( $request );
@@ -802,17 +728,17 @@ sub select {
 
     my $input = $form->find_input($name);
     if (!$input) {
-	$self->warn( qq{ Input "$name" not found } );
-	return;
+        $self->warn( qq{ Input "$name" not found } );
+        return;
     } elsif ($input->type ne 'option') {
-	$self->warn( qq{ Input "$name" is not type "select" } );
-	return;
+        $self->warn( qq{ Input "$name" is not type "select" } );
+        return;
     }
 
     if (ref($value) eq "ARRAY") {
-	$form->param($name, $value);
+        $form->param($name, $value);
     } else {
-	$form->value($name => $value);
+        $form->value($name => $value);
     }
 }
 
@@ -1054,6 +980,14 @@ leading or trailing spaces will fail.
 =item * C<< url => string >> and C<< url_regex => regex >>
 
 Matches the URL of the link against I<string> or I<regex>, as appropriate.
+The URL may be a relative URL, like F<foo/bar.html>, depending on how
+it's coded on the page.
+
+=item * C<< url_abs => string >> and C<< url_abs_regex => regex >>
+
+Matches the absolute URL of the link against I<string> or I<regex>,
+as appropriate.  The URL will be an absolute URL, even if it's relative
+in the page.
 
 =item * C<< name => string >> and C<< name_regex => regex >>
 
@@ -1118,7 +1052,7 @@ sub find_link {
 
     for my $key ( keys %parms ) {
         my $val = $parms{$key};
-        if ( $key !~ /^(n|(text|url|name|tag)(_regex)?)$/ ) {
+        if ( $key !~ /^(n|(text|url|url_abs|name|tag)(_regex)?)$/ ) {
             $self->warn( qq{Unknown link-finding parameter "$key"} );
             delete $parms{$key};
             next;
@@ -1149,6 +1083,8 @@ sub find_link {
     my @conditions;
     push @conditions, q/ $_[0]->[0] eq $parms{url} /                                if defined $parms{url};
     push @conditions, q/ $_[0]->[0] =~ $parms{url_regex} /                          if defined $parms{url_regex};
+    push @conditions, q/ $_[0]->url_abs eq $parms{url_abs} /                        if defined $parms{url_abs};
+    push @conditions, q/ $_[0]->url_abs =~ $parms{url_abs_regex} /                  if defined $parms{url_abs_regex};
     push @conditions, q/ defined($_[0]->[1]) and $_[0]->[1] eq $parms{text} /       if defined $parms{text};
     push @conditions, q/ defined($_[0]->[1]) and $_[0]->[1] =~ $parms{text_regex} / if defined $parms{text_regex};
     push @conditions, q/ defined($_[0]->[2]) and $_[0]->[2] eq $parms{name} /       if defined $parms{name};
@@ -1296,13 +1232,13 @@ sub request {
     # add correct Accept-Encoding header to restore compliance with
     # http://www.freesoft.org/CIE/RFC/2068/158.htm
     unless ($request->header('Accept-Encoding')) {
-      my $accept = 'identity';
-      # only allow "identity" for the time being
-      #eval {
-      #  require Compress::Zlib;
-      #  $accept .= ', deflate, gzip';
-      #};
-      $self->add_header( 'Accept-Encoding', $accept);
+        my $accept = 'identity';
+        # only allow "identity" for the time being
+        #eval {
+        #  require Compress::Zlib;
+        #  $accept .= ', deflate, gzip';
+        #};
+        $self->add_header( 'Accept-Encoding', $accept);
     };
 
     my $res = $self->{res} = $self->_make_request( $request, @_ );
@@ -1318,8 +1254,8 @@ sub request {
     # (currently isn't reached because we only allow 'identity')
     my $encoding = $res->header('Content-Encoding') || "";
     if ($encoding =~ /^(?:gzip|deflate)$/) {
-      $self->{content} = Compress::Zlib::memGunzip( $self->{ content });
-      # should I delete the response header?
+        $self->{content} = Compress::Zlib::memGunzip( $self->{content});
+        # should I delete the response header?
     };
 
     if ( $self->{res}->is_success ) {
@@ -1617,11 +1553,79 @@ sub _die {
     &Carp::croak; # pass thru
 }
 
-=head1 See Also
+=head1 OTHER DOCUMENTATION
 
-See also L<WWW::Mechanize::Examples> for sample code.
-L<WWW::Mechanize::FormFiller> and L<WWW::Mechanize::Shell> are add-ons
-that turn Mechanize into more of a scripting tool.
+=head2 I<Spidering Hacks>, by Kevin Hemenway and Tara Calishain
+
+I<Spidering Hacks> from O'Reilly
+(L<http://www.oreilly.com/catalog/spiderhks/>) is a great book for anyone
+wanting to know more about screen-scraping and spidering.
+
+There are six hacks that use Mech or a Mech derivative:
+
+=over 4
+
+=item #21 WWW::Mechanize 101
+
+=item #22 Scraping with WWW::Mechanize
+
+=item #36 Downloading Images from Webshots
+
+=item #44 Archiving Yahoo! Groups Messages with WWW::Yahoo::Groups
+
+=item #64 Super Author Searching
+
+=item #73 Scraping TV Listings
+
+=back
+
+The book was also positively reviewed on Slashdot:
+L<http://books.slashdot.org/article.pl?sid=03/12/11/2126256>
+
+=head2 Online resources
+
+=over 4
+
+=item * WWW::Mechanize Development mailing list
+
+Hosted at Sourceforge, this is where the contributors to Mech
+discuss things.  L<http://sourceforge.net/mail/?group_id=83309>
+
+=item * LWP mailing list
+
+The LWP mailing list is at
+L<http://lists.perl.org/showlist.cgi?name=libwww>, and is more
+user-oriented and well-populated than the WWW::Mechanize Development
+list.  This is a good list for Mech users, since LWP is the basis
+for Mech.
+
+=item * L<WWW::Mechanize::Examples>
+
+A random array of examples submitted by users, included with the
+Mechanize distribution.
+
+=item * L<http://www.perl.com/pub/a/2003/01/22/mechanize.html>
+
+Chris Ball's article about using WWW::Mechanize for scraping TV
+listings.
+
+=item * L<http://www.stonehenge.com/merlyn/LinuxMag/col47.html>
+
+Randal Schwartz's article on scraping Yahoo News for images.  It's
+already out of date: He manually walks the list of links hunting
+for matches, which wouldn't have been necessary if the C<find_link()>
+method existed at press time.
+
+=item * L<http://www.perladvent.org/2002/16th/>
+
+WWW::Mechanize on the Perl Advent Calendar, by Mark Fowler.
+
+=item * L<http://www.linux-magazin.de/Artikel/ausgabe/2004/03/perl/perl.html>
+
+Michael Schilli's article on Mech and L<WWW::Mechanize::Shell> for the
+German magazine I<Linux Magazin>.
+
+=back
 
 =head2 Other modules that use Mechanize
 
@@ -1663,7 +1667,7 @@ for Mechanize.  Please check to see if your bug has already been reported.
 
 =head1 Author
 
-Copyright 2003 Andy Lester <andy@petdance.com>
+Copyright 2004 Andy Lester <andy@petdance.com>
 
 Released under the Artistic License.  Based on Kirrily Robert's excellent
 L<WWW::Automate> package.
