@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.05_04
+Version 1.06
 
 =cut
 
-our $VERSION = "1.05_04";
+our $VERSION = "1.06";
 
 =head1 SYNOPSIS
 
@@ -101,7 +101,7 @@ use HTML::Form 1.00;
 use HTML::TokeParser;
 use URI::URL;
 
-our @ISA = qw( LWP::UserAgent );
+use base 'LWP::UserAgent';
 
 =head1 CONSTRUCTOR AND STARTUP
 
@@ -324,7 +324,7 @@ sub get {
 
 =head2 $mech->reload()
 
-Acts like the reload button in a browser: Reperforms the current
+Acts like the reload button in a browser: repeats the current
 request. The history (as per the L<back> method) is not altered.
 
 Returns the L<HTTP::Response> object from the reload, or C<undef>
@@ -337,8 +337,8 @@ sub reload {
 
     return unless $self->{req};
 
-    local $self->{inhibit_page_stack} = 1;
-    return $self->request( $self->{req});
+    return unless defined(my $request = $self->{req});
+	$self->_update_page($request, $self->_make_request( $request, @_ ));
 }
 
 =head2 $mech->back()
@@ -597,7 +597,7 @@ key/value pairs:
 
 =over 4
 
-=item * C<< text => string >> and C<< text_regex => regex >>
+=item * C<< text => 'string', >> and C<< text_regex => qr/regex/, >>
 
 C<text> matches the text of the link against I<string>, which must be an
 exact match.  To select a link with text that is exactly "download", use
@@ -613,7 +613,7 @@ Note that the text extracted from the page's links are trimmed.  For
 example, C<< <a> foo </a> >> is stored as 'foo', and searching for
 leading or trailing spaces will fail.
 
-=item * C<< url => string >> and C<< url_regex => regex >>
+=item * C<< url => 'string', >> and C<< url_regex => qr/regex/, >>
 
 Matches the URL of the link against I<string> or I<regex>, as appropriate.
 The URL may be a relative URL, like F<foo/bar.html>, depending on how
@@ -792,14 +792,88 @@ sub images {
     return $self->{images};
 }
 
-=head2 $mech->find_all_images( ... )
+=for future-development
+
+=head2 $mech->find_image()
+
+Finds an image in the current page. It returns a
+L<WWW::Mechanize::Image> object which describes the image.  If it fails
+to find an image it returns undef.
+
+You can select which link to find by passing in one or more of these
+key/value pairs:
+
+=over 4
+
+=item * C<< alt => 'string' >> and C<< alt_regex => qr/regex/, >>
+
+C<alt> matches the ALT attribute of the image against I<string>, which must be an
+exact match. To select a image with an ALT tag that is exactly "download", use
+
+    $mech->find_image( alt  => "download" );
+
+C<alt_regex> matches the ALT attribute of the image  against a regular
+expression.  To select an image with an ALT attribute that has "download"
+anywhere in it, regardless of case, use
+
+    $mech->find_image( alt_regex => qr/download/i );
+
+=item * C<< url => 'string', >> and C<< url_regex => qr/regex/, >>
+
+Matches the URL of the image against I<string> or I<regex>, as appropriate.
+The URL may be a relative URL, like F<foo/bar.html>, depending on how
+it's coded on the page.
+
+=item * C<< url_abs => string >> and C<< url_abs_regex => regex >>
+
+Matches the absolute URL of the image against I<string> or I<regex>,
+as appropriate.  The URL will be an absolute URL, even if it's relative
+in the page.
+
+=item * C<< tag => string >> and C<< tag_regex => regex >>
+
+Matches the tag that the image came from against I<string> or I<regex>,
+as appropriate.  The C<tag_regex> is probably most useful to check for
+more than one tag, as in:
+
+    $mech->find_image( tag_regex => qr/^(img|input)$/ );
+
+The tags supported are <img> and <input> . 
+
+=back
+
+If C<n> is not specified, it defaults to 1.  Therefore, if you don't
+specify any parms, this method defaults to finding the first image on the
+page.
+
+Note that you can specify multiple ALT or URL parameters, which
+will be ANDed together.  For example, to find the first image with
+ALT text of "News" and with "cnn.com" in the URL, use:
+
+    $mech->find_image( image => "News", url_regex => qr/cnn\.com/ );
+
+The return value is a reference to an array containing a
+L<WWW::Mechanize::Image> object for every image in C<< $self->content >>.
 
 =cut
+
+=for future-development
+
+sub find_image {
+    my $self = shift; 
+    # Write me.
+}
+
+=head2 $mech->find_all_images( ... )
+
+xcut
 
 sub find_all_images {
     my $self = shift;
     return $self->find_image( @_, n=>'all' );
 }
+
+=cut
 
 =head1 FORM METHODS
 
@@ -1500,35 +1574,8 @@ sub request {
         $self->_push_page_stack();
     }
 
-    $self->{req} = $request;
-    $self->{redirected_uri} = $request->uri->as_string;
-
-    my $res = $self->{res} = $self->_make_request( $request, @_ );
-
-    # These internal hash elements should be dropped in favor of
-    # the accessors soon. -- 1/19/03
-    $self->{status}  = $res->code;
-    $self->{base}    = $res->base;
-    $self->{ct}      = $res->content_type || "";
-
-    if ( $res->is_success ) {
-        $self->{uri} = $self->{redirected_uri};
-        $self->{last_uri} = $self->{uri};
-    } else {
-        if ( $self->{autocheck} ) {
-            $self->die( "Error ", $request->method, "ing ", $request->uri, ": ", $res->message );
-        }
-    }
-
-    $self->_reset_page;
-    if ( $self->is_html ) {
-        $self->update_html( $res->content );
-    } else {
-        $self->{content} = $res->content;
-    }
-
-    return $res;
-} # request
+	$self->_update_page($request, $self->_make_request( $request, @_ ));
+}
 
 =head2 $mech->update_html( $html )
 
@@ -1592,6 +1639,48 @@ sub update_html {
 
     return;
 }
+
+=head2 $mech->_update_page($request, $response)
+
+Updates all internal variables in $mech as if $request was just
+performed, and returns $response. The page stack is B<not> altered by
+this method, it is up to caller (e.g. L</request>) to do that.
+
+=cut
+
+sub _update_page {
+    my ($self, $request, $res) = @_;
+
+    $self->{req} = $request;
+    $self->{redirected_uri} = $request->uri->as_string;
+
+    $self->{res} = $res;
+
+    # These internal hash elements should be dropped in favor of
+    # the accessors soon. -- 1/19/03
+    $self->{status}  = $res->code;
+    $self->{base}    = $res->base;
+    $self->{ct}      = $res->content_type || "";
+
+    if ( $res->is_success ) {
+        $self->{uri} = $self->{redirected_uri};
+        $self->{last_uri} = $self->{uri};
+    } else {
+        if ( $self->{autocheck} ) {
+            $self->die( "Error ", $request->method, "ing ", $request->uri, ": ", $res->message );
+        }
+    }
+
+    $self->_reset_page;
+    if ($self->is_html) {
+        $self->update_html($res->content);
+    } else {
+        $self->{content} = $res->content;
+    }
+
+    return $res;
+} # _update_page
+
 
 =head2 $mech->_modify_request( $req )
 
@@ -1875,10 +1964,6 @@ object.
 sub _push_page_stack {
     my $self = shift;
 
-    # Hook for reload() and maybe future code (e.g. 302 chasing,
-    # frames) that may want to fetch stuff without altering the history.
-    return 1 if $self->{inhibit_page_stack};
-
     # Don't push anything if it's a virgin object
     if ( $self->{res} ) {
         my $save_stack = $self->{page_stack};
@@ -1902,10 +1987,6 @@ sub _push_page_stack {
 
 sub _pop_page_stack {
     my $self = shift;
-
-    # Hook for reload() and maybe future code (e.g. 302 chasing,
-    # frames) that may want to fetch stuff without altering the history.
-    return 1 if $self->{inhibit_page_stack};
 
     if (@{$self->{page_stack}}) {
         my $popped = pop @{$self->{page_stack}};
