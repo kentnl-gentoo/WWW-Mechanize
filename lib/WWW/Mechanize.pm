@@ -6,13 +6,13 @@ WWW::Mechanize - automate interaction with websites
 
 =head1 VERSION
 
-Version 0.56
+Version 0.57
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.45 2003/07/24 17:16:29 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.48 2003/08/01 04:21:47 petdance Exp $
 
 =cut
 
-our $VERSION = "0.56";
+our $VERSION = "0.57";
 
 =head1 SYNOPSIS
 
@@ -76,6 +76,21 @@ L<WWW::Mechanize> is a proper subclass of L<LWP::UserAgent> and
 you can also use any of L<LWP::UserAgent>'s methods.
 
     $a->add_header($name => $value);
+
+=head1 IMPORTANT LINKS
+
+=over 4
+
+=item * L<http://search.cpan.org/dist/WWW-Mechanize/>
+
+The CPAN documentation page for Mechanize.
+
+=item * L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=WWW-Mechanize>
+
+The RT queue for bugs & enhancements in Mechanize.  Click the "Report bug"
+link if your bug isn't already reported.
+
+=back
 
 =head1 OTHER DOCUMENTATION
 
@@ -798,8 +813,22 @@ text of "News" and with "cnn.com" in the URL, use:
 =head2 C<< $a->find_link() >>: link format
 
 The return value is a reference to an array containing
-an array reference for every C<< <A> >>, C<< <FRAME> >>
-or C<< <IFRAME> >> tag in C<< $self->{content} >>.  
+a L<WWW::Mechanize::Link> object for every link in 
+C<< $self->{content} >>.  
+
+The links come from the following:
+
+=over 4
+
+=item C<< <A HREF=...> >>
+
+=item C<< <AREA HREF=...> >>
+
+=item C<< <FRAME SRC=...> >>
+
+=item C<< <IFRAME SRC=...> >>
+
+=back
 
 The array elements are:
 
@@ -1102,6 +1131,7 @@ property with L<WWW::Mechanize::Link> objects.
 
 my %urltags = (
     a => "href",
+    area => "href",
     frame => "src",
     iframe => "src",
 );
@@ -1264,9 +1294,13 @@ that turn Mechanize into more of a scripting tool.
 
 =head1 Requests & Bugs
 
-Please report any requests, suggestions or (gasp!) bugs via the system
-at http://rt.cpan.org/, or email to bug-WWW-Mechanize@rt.cpan.org.
-This makes it much easier for me to track things.
+Please report any requests, suggestions or (gasp!) bugs via the
+excellent RT bug-tracking system at http://rt.cpan.org/, or email to
+bug-WWW-Mechanize@rt.cpan.org.  This makes it much easier for me to
+track things.
+
+L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=WWW-Mechanize> is the RT queue
+for Mechanize.  Please check to see if your bug has already been reported.
 
 =head1 Author
 

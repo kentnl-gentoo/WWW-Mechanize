@@ -2,7 +2,7 @@ package WWW::Mechanize::Link;
 
 =head1 NAME
 
-WWW::Mechanize::Link - link object for Mechanize
+WWW::Mechanize::Link - Link object for WWW::Mechanize
 
 =head1 SYNOPSIS
 
@@ -16,7 +16,7 @@ use warnings;
 
 =head1 Constructor
 
-=head2 C<< new( I<$url>, I<$text>, I<$name> ) >>
+=head2 C<< new( I<$url>, I<$text>, I<$name>, I<$tag> ) >>
 
 Creates and returns a new WWW::Mechanize::Link object.
 
@@ -37,6 +37,8 @@ sub new {
     return $self;
 }
 
+=head1 Accessors
+
 =head2 C<< $link->url() >>
 
 URL from the link
@@ -47,10 +49,7 @@ Text of the link
 
 =head2 C<< $link->name() >>
 
-Name from the link tag
-
-For the C<< <A> >> tag, this is the C<HREF> attribute.
-For C<< <FRAME> >> or C<< <IFRAME> >>, it's the C<SRC> attribute.
+NAME attribute from the source tag, if any.
 
 =head2 C<< $link->tag() >>
 
@@ -67,8 +66,7 @@ sub tag  { return ($_[0])->[3]; }
 
 Copyright 2003 Andy Lester <andy@petdance.com>
 
-Released under the Artistic License.  Based on Kirrily Robert's excellent
-L<WWW::Automate> package.
+Released under the Artistic License.
 
 =cut
 
