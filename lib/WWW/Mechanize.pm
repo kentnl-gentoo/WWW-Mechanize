@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.10
+Version 1.11_01
 
 =cut
 
-our $VERSION = "1.10";
+our $VERSION = "1.11_01";
 
 =head1 SYNOPSIS
 
@@ -335,10 +335,9 @@ if there's no current request.
 sub reload {
     my $self = shift;
 
-    return unless $self->{req};
+    return unless my $req = $self->{req};
 
-    return unless defined(my $request = $self->{req});
-	$self->_update_page($request, $self->_make_request( $request, @_ ));
+    $self->_update_page( $req, $self->_make_request( $req, @_ ) );
 }
 
 =head2 $mech->back()
@@ -1142,7 +1141,7 @@ sub set_fields {
     my $self = shift;
     my %fields = @_;
 
-    my $form = $self->current_form;
+    my $form = $self->current_form or $self->die( "No form defined" );
 
     while ( my ( $field, $value ) = each %fields ) {
         if ( ref $value eq 'ARRAY' ) {
@@ -1700,10 +1699,80 @@ sub update_html {
     $self->_extract_links();
     $self->_extract_images();
 
-    $self->_parse_html(); #For compatibility with folks that used to overload that method.
-
     return;
 }
+
+=head1 DEPRECATED METHODS
+
+This methods have been replaced by more flexible and precise methods.
+Please use them instead.
+
+=head2 $mech->follow($string|$num)
+
+B<DEPRECATED> in favor of C<L<follow_link()>>, which provides more
+flexibility.
+
+Follow a link.  If you provide a string, the first link whose text
+matches that string will be followed.  If you provide a number, it
+will be the I<$num>th link on the page.  Note that the links are
+0-based.
+
+Returns true if the link was found on the page or undef otherwise.
+
+=cut
+
+sub follow {
+    my ($self, $link) = @_;
+    my @links = $self->links;
+    my $thislink;
+    if ( $link =~ /^\d+$/ ) { # is a number?
+        if ($link <= $#links) {
+            $thislink = $links[$link];
+        } else {
+            $self->warn( "Link number $link is greater than maximum link $#links on this page ($self->{uri})" );
+            return;
+        }
+    } else {                        # user provided a regexp
+        LINK: foreach my $l (@links) {
+            if ( defined($l->[1]) && $l->[1] =~ /$link/) {
+                $thislink = $l;     # grab first match
+                last LINK;
+            }
+        }
+        unless ($thislink) {
+            $self->warn( "Can't find any link matching $link on this page ($self->{uri})" );
+            return;
+        }
+    }
+
+    $thislink = $thislink->[0];     # we just want the URL, not the text
+
+    $self->get( $thislink );
+
+    return 1;
+}
+
+=head2 $mech->form($number|$name)
+
+B<DEPRECATED> in favor of C<L<form_name()>> or C<L<form_number()>>.
+
+Selects a form by number or name, depending on if it gets passed an
+all-numeric string or not.  This means that if you have a form name
+that's all digits, this method will not do the right thing.
+
+=cut
+
+sub form {
+    my $self = shift;
+    my $arg = shift;
+
+    return $arg =~ /^\d+$/ ? $self->form_number($arg) : $self->form_name($arg);
+}
+
+=head1 INTERNAL-ONLY METHODS
+
+These methods are only used internally.  You probably don't need to
+know about them.
 
 =head2 $mech->_update_page($request, $response)
 
@@ -1793,89 +1862,6 @@ sub _make_request {
     $self->SUPER::request(@_);
 }
 
-=head1 DEPRECATED METHODS
-
-This methods have been replaced by more flexible and precise methods.
-Please use them instead.
-
-=head2 $mech->follow($string|$num)
-
-B<DEPRECATED> in favor of C<L<follow_link()>>, which provides more
-flexibility.
-
-Follow a link.  If you provide a string, the first link whose text
-matches that string will be followed.  If you provide a number, it
-will be the I<$num>th link on the page.  Note that the links are
-0-based.
-
-Returns true if the link was found on the page or undef otherwise.
-
-=cut
-
-sub follow {
-    my ($self, $link) = @_;
-    my @links = $self->links;
-    my $thislink;
-    if ( $link =~ /^\d+$/ ) { # is a number?
-        if ($link <= $#links) {
-            $thislink = $links[$link];
-        } else {
-            $self->warn( "Link number $link is greater than maximum link $#links on this page ($self->{uri})" );
-            return;
-        }
-    } else {                        # user provided a regexp
-        LINK: foreach my $l (@links) {
-            if ( defined($l->[1]) && $l->[1] =~ /$link/) {
-                $thislink = $l;     # grab first match
-                last LINK;
-            }
-        }
-        unless ($thislink) {
-            $self->warn( "Can't find any link matching $link on this page ($self->{uri})" );
-            return;
-        }
-    }
-
-    $thislink = $thislink->[0];     # we just want the URL, not the text
-
-    $self->get( $thislink );
-
-    return 1;
-}
-
-=head2 $mech->form($number|$name)
-
-B<DEPRECATED> in favor of C<L<form_name()>> or C<L<form_number()>>.
-
-Selects a form by number or name, depending on if it gets passed an
-all-numeric string or not.  This means that if you have a form name
-that's all digits, this method will not do the right thing.
-
-=cut
-
-sub form {
-    my $self = shift;
-    my $arg = shift;
-
-    return $arg =~ /^\d+$/ ? $self->form_number($arg) : $self->form_name($arg);
-}
-
-=head2 $mech->_parse_html()
-
-An internal method that initializes forms and links given a HTML
-document.  Overriding this in your subclass is B<DEPRECATED>, better
-override L</update_html> instead in your new code.
-
-=cut
-
-sub _parse_html { }
-
-
-=head1 INTERNAL-ONLY METHODS
-
-These methods are only used internally.  You probably don't need to
-know about them.
-
 =head2 $mech->_reset_page()
 
 Resets the internal fields that track page parsed stuff.
@@ -1953,7 +1939,7 @@ sub _image_from_token {
 
     if ( $tag eq "input" ) {
         my $type = $attrs->{type} or return;
-        return unless $type eq "submit";
+        return unless $type eq "image";
     }
 
     require WWW::Mechanize::Image;
@@ -2242,6 +2228,10 @@ Here are modules that use or subclass Mechanize.  Let me know of any others:
 
 Acts as a proxy for web interaction, and then generates WWW::Mechanize scripts.
 
+=item * L<Win32::IE::Mechanize>
+
+Just like Mech, but using Microsoft Internet Explorer to do the work.
+
 =item * L<WWW::Bugzilla>
 
 =item * L<WWW::Google::Groups>
@@ -2307,6 +2297,8 @@ Scott Lanning,
 Rob Casey,
 Leland Johnson,
 Joshua Gatcomb,
+Julien Beasley,
+Abe Timmerman,
 and the late great Iain Truskett.
 
 =head1 COPYRIGHT

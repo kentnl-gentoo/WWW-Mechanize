@@ -1,6 +1,19 @@
 Revision history for Perl extension WWW::Mechanize
 
-Next
+1.11_01 Mon Feb 14 00:12:48 CST 2005
+        [THINGS THAT MAY BREAK YOUR CODE]
+        * Removed deprecated _parse_html() method.
+
+        [FIXES]
+        * Was incorrectly looking for INPUT tags TYPE="SUBMIT" as images.
+          Thanks to Abe Timmerman.
+
+        [ENHANCEMENTS]
+        * Calling $mech->set_fields() with no current form now dies.
+          Thanks to Julien Beasley.
+
+
+1.10    Tue Jan 31 11:30pm-ish
         [FIXES]
         * Fixed bug where images inside of links would not be found.
 
