@@ -2,7 +2,7 @@ use ExtUtils::MakeMaker qw( WriteMakefile prompt );
 use ExtUtils::Command qw( touch rm_f );
 use strict;
 
-use constant FLAG_SKIPMECHFORMS => "t/SKIP-MECH-FORMS";
+use constant FLAG_SKIPMECHDUMP => "t/SKIP-MECH-FORMS";
 
 # Much logic stolen fromm libwww-perl's Makefile.PL
 my $skiplive = 0;
@@ -53,12 +53,15 @@ my $parms = {
     'test' => { TESTS => $tests },
 };
 
-if ( prompt( "Do you want to install the mech-forms utility?", "y" ) =~ /^y/i ) {
-    $parms->{EXE_FILES} = [ 'script/mech-forms' ];
-    local @ARGV = FLAG_SKIPMECHFORMS;
+if ( prompt( "Do you want to install the mech-dump utility?", "y" ) =~ /^y/i ) {
+    $parms->{EXE_FILES} = [ 'script/mech-dump' ];
+    $parms->{PREREQ_PM}->{'Getopt::Long'} = 0;
+    $parms->{PREREQ_PM}->{'Pod::Usage'} = 0;
+
+    local @ARGV = FLAG_SKIPMECHDUMP;
     rm_f();
 } else {
-    local @ARGV = FLAG_SKIPMECHFORMS;
+    local @ARGV = FLAG_SKIPMECHDUMP;
     touch();
 }
 

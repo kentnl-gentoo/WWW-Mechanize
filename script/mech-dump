@@ -1,0 +1,83 @@
+#!/usr/bin/perl -w
+
+=head1 NAME
+
+mech-dump - Dumps information about a web page
+
+=cut
+
+use strict;
+use WWW::Mechanize;
+use Getopt::Long;
+use Pod::Usage;
+
+my @actions;
+my $absolute;
+
+GetOptions( 
+    forms =>    sub { push( @actions, \&dump_forms ); },
+    links =>    sub { push( @actions, \&dump_links ); },
+    images =>	sub { push( @actions, \&dump_images ); },
+    all =>	sub { push( @actions, \&dump_forms, \&dump_links, \&dump_images ); },
+    absolute => \$absolute,
+    help =>	sub { pod2usage(1); },
+) or pod2usage(2); 
+
+=head1 SYNOPSIS
+
+mech-dump [options] [file|url]
+
+Options:
+
+    --forms	    Dump table of forms
+    --links	    Dump table of links
+    --images	    Dump table of images
+    --all	    Dump all three of the above, in that order
+
+    --absolute	    Show URLs as absolute, even if relative in the page
+    --help	    Show this message
+
+The order of the options specified is relevant.  Repeated options
+get repeated dumps.
+
+=cut
+
+my $uri = shift or die "Must specify a URL or file to check\n";
+if ( -e $uri ) {
+    require URI::file;
+    $uri = URI::file->new_abs( $uri )->as_string;
+}
+
+my $mech = WWW::Mechanize->new( cookie_jar => undef );
+my $response = $mech->get( $uri );
+$response->is_success or die "Can't fetch $uri\n", $response->status_line, "\n";
+$mech->is_html or die "$uri returns type \"", $mech->ct, "\", not \"text/html\"\n";
+
+for my $action ( @actions ) {
+    $action->( $mech );
+}
+
+sub dump_links {
+    my $mech = shift;
+    my $base = $mech->uri;
+    for my $link ( $mech->find_all_links ) {
+	my $url = $absolute ? URI->new_abs( $link->url, $base )->as_string : $link->url;
+        print "$url\n";
+    }
+}
+
+sub dump_images {
+    my $mech = shift;
+
+    warn "Dumping images (but this isn't written yet)\n";
+}
+
+sub dump_forms {
+    my $mech = shift;
+
+    for my $form ( $mech->forms() ) {
+	print $form->dump;
+	print "\n";
+    }
+}
+

@@ -6,13 +6,13 @@ WWW::Mechanize - automate interaction with websites
 
 =head1 VERSION
 
-Version 0.58
+Version 0.59
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.53 2003/08/15 04:30:48 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.57 2003/09/04 05:10:35 petdance Exp $
 
 =cut
 
-our $VERSION = "0.58";
+our $VERSION = "0.59";
 
 =head1 SYNOPSIS
 
@@ -358,7 +358,6 @@ sub follow_link {
     my $response;
     my $link = $self->find_link(%parms);
     if ( $link ) {
-	$self->_push_page_stack();
 	$response = $self->get( $link->url );
     }
 
@@ -539,7 +538,6 @@ Returns an L<HTTP::Response> object.
 sub click {
     my ($self, $button, $x, $y) = @_;
     for ($x, $y) { $_ = 1 unless defined; }
-    $self->_push_page_stack();
     my $request = $self->{form}->click($button, $x, $y);
     return $self->request( $request );
 }
@@ -557,7 +555,6 @@ longer so.
 sub submit {
     my $self = shift;
 
-    $self->_push_page_stack();
     my $request = $self->{form}->make_request;
     return $self->request( $request );
 }
@@ -1007,6 +1004,10 @@ sub request {
     my $self = shift;
     my $request = shift;
 
+    if ( $request->method eq "GET" || $request->method eq "POST" ) {
+	$self->_push_page_stack();
+    }
+
     $request->header( Referer => $self->{last_uri} ) if $self->{last_uri};
     while ( my($key,$value) = each %WWW::Mechanize::headers ) {
         $request->header( $key => $value );
@@ -1068,7 +1069,7 @@ sub follow {
         }
     } else {                        # user provided a regexp
         LINK: foreach my $l (@links) {
-            if ($l->[1] =~ /$link/) {
+            if ( defined($l->[1]) && $l->[1] =~ /$link/) {
                 $thislink = $l;     # grab first match
                 last LINK;
             }
@@ -1081,7 +1082,6 @@ sub follow {
 
     $thislink = $thislink->[0];     # we just want the URL, not the text
 
-    $self->_push_page_stack();
     $self->get( $thislink );
 
     return 1;
@@ -1193,12 +1193,15 @@ object.
 sub _push_page_stack {
     my $self = shift;
 
-    my $save_stack = $self->{page_stack};
-    $self->{page_stack} = [];
+    # Don't push anything if it's a virgin object
+    if ( $self->{res} ) {
+	my $save_stack = $self->{page_stack};
+	$self->{page_stack} = [];
 
-    push( @$save_stack, $self->clone );
+	push( @$save_stack, $self->clone );
 
-    $self->{page_stack} = $save_stack;
+	$self->{page_stack} = $save_stack;
+    }
 
     return 1;
 }
@@ -1303,6 +1306,24 @@ or get the specs from the environment:
 See also L<WWW::Mechanize::Examples> for sample code.
 L<WWW::Mechanize::FormFiller> and L<WWW::Mechanize::Shell> are add-ons
 that turn Mechanize into more of a scripting tool.
+
+=head2 Other modules that use Mechanize
+
+Here's a list of modules that use or subclass Mechanize.  Let me know of any others:
+
+=over 4
+
+=item * L<WWW::Mechanize::FormFiller>
+
+=item * L<WWW::Mechanize::Shell>
+
+=item * L<WWW::Mechanize::Sleepy>
+
+=item * L<WWW::Yahoo::Groups>
+
+=item * L<WWW::Mechanize::SpamCop>
+
+=back
 
 =head1 Requests & Bugs
 
