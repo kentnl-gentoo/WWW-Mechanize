@@ -6,13 +6,13 @@ WWW::Mechanize - automate interaction with websites
 
 =head1 VERSION
 
-Version 0.54
+Version 0.55
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.32 2003/07/20 05:47:51 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.41 2003/07/22 17:06:27 petdance Exp $
 
 =cut
 
-our $VERSION = "0.54";
+our $VERSION = "0.55";
 
 =head1 SYNOPSIS
 
@@ -107,7 +107,6 @@ WWW::Mechanize on the Perl Advent Calendar, by Mark Fowler.
 use strict;
 use warnings;
 
-use Carp qw(carp);
 use HTTP::Request 1.30;
 use LWP::UserAgent 2.003;
 use HTML::Form 1.00;
@@ -118,7 +117,7 @@ our @ISA = qw( LWP::UserAgent );
 
 our %headers;
 
-=head1 Constructor
+=head1 Constructor and startup
 
 =head2 C<< new() >>
 
@@ -138,6 +137,9 @@ as in:
 
     my $a = WWW::Mechanize->new( agent=>"wonderbot 1.01" );
 
+Note that this agent can be one of the magic strings defined in L<agent()>
+below.
+
 If you want none of the overhead of a cookie jar, or don't want your
 bot accepting cookies, you have to explicitly disallow it, like so:
 
@@ -153,17 +155,77 @@ sub new {
         cookie_jar  => {},
     );
 
-    my $self = $class->SUPER::new( %default_parms, @_ );
+    my %parms = ( %default_parms, @_ );
+
+    my $self = $class->SUPER::new( %parms );
     bless $self, $class;
 
     $self->{page_stack} = [];
     $self->{quiet} = 0;
     $self->env_proxy();
+    $self->agent($parms{agent}) if defined $parms{agent};
     push( @{$self->requests_redirectable}, 'POST' );
 
     $self->_reset_page;
 
     return $self;
+}
+
+=head2 C<< $a->agent( [I<$str>] ) >>
+
+Without I<$str>, returns the name of the user agent as identified to servers.
+
+If I<$str> is passed, sets the agent string to the I<$str>.  I<$str>
+can be any string, but if it's one of the following magic strings:
+
+=over 4
+
+=item * Windows IE 6
+
+=item * Windows Mozilla
+
+=item * Mac Safari
+
+=item * Mac Mozilla
+
+=item * Linux Mozilla
+
+=item * Linux Konqueror
+
+=back
+
+then it will be replaced with a more interesting one.  For instance,
+
+    C<< $a->agent( 'Windows IE 6' );
+
+sets your User-Agent to
+
+    Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)
+
+Whenever the string is set, the old value is returned.
+
+=cut
+
+our %known_agents = (
+    'Windows IE 6'	=> 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)',
+    'Windows Mozilla'	=> 'Mozilla/5.0 (Windows; U; Windows NT 5.0; en-US; rv:1.4b) Gecko/20030516 Mozilla Firebird/0.6',
+    'Mac Safari'	=> 'Mozilla/5.0 (Macintosh; U; PPC Mac OS X; en-us) AppleWebKit/85 (KHTML, like Gecko) Safari/85',
+    'Mac Mozilla'	=> 'Mozilla/5.0 (Macintosh; U; PPC Mac OS X Mach-O; en-US; rv:1.4a) Gecko/20030401',
+    'Linux Mozilla'	=> 'Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.4) Gecko/20030624',
+    'Linux Konqueror'	=> 'Mozilla/5.0 (compatible; Konqueror/3; Linux)',
+);
+
+sub agent {
+    my $self = shift;
+
+    if ( @_ ) {
+	my $str = shift;
+	$str = $known_agents{$str} if defined $known_agents{$str};
+	return $self->SUPER::agent( $str );
+    } else {
+	return $self->SUPER::agent();
+    }
+
 }
 
 =head1 Page-fetching methods
@@ -175,6 +237,14 @@ Given a URL/URI, fetches it.  Returns an C<HTTP::Response> object.
 The results are stored internally in the agent object, but you don't
 know that.  Just use the accessors listed below.  Poking at the internals
 is deprecated and subject to change in the future.
+
+C<get()> is a well-behaved overloaded version of the method in
+C<LWP::UserAgent>.  This lets you do things like
+
+    $mech->get( $url, ":content_file"=>$tempfile );
+
+and you can rest assured that the parms will get filtered down
+appropriately.
 
 =cut
 
@@ -193,7 +263,7 @@ sub get {
 
 Acts like the reload button in a browser: Reperforms the current request.
 
-Returns undef if there's no current request, or the C<HTTP::Response>
+Returns undef if there's no current request, or the L<HTTP::Response>
 object from the reload.
 
 =cut
@@ -262,86 +332,22 @@ sub follow_link {
     my %parms = ( n=>1, @_ );
 
     if ( $parms{n} eq "all" ) {
+	require Carp;
 	delete $parms{n};
-	carp qq{follow_link(n=>"all") is not valid};
+	Carp::carp qq{follow_link(n=>"all") is not valid};
     }
 
     my $response;
-    my $link_ref = $self->find_link(%parms);
-    if ( $link_ref ) {
-	my $link = $link_ref->[0];     # we just want the URL, not the text
+    my $link = $self->find_link(%parms);
+    if ( $link ) {
 	$self->_push_page_stack();
-	$response = $self->get( $link );
+	$response = $self->get( $link->url );
     }
 
     return $response;
 }
 
-=head2 C<< $a->follow($string|$num) >>
-
-(Note that C<follow()> is deprecated in favor of Cfollow_link()>,
-which provides more flexibility.)
-
-Follow a link.  If you provide a string, the first link whose text
-matches that string will be followed.  If you provide a number, it
-will be the I<$num>th link on the page.  Note that the links are
-0-based.
-
-Returns true if the link was found on the page or undef otherwise.
-
-=cut
-
-sub follow {
-    my ($self, $link) = @_;
-    my @links = @{$self->{links}};
-    my $thislink;
-    if ( $link =~ /^\d+$/ ) { # is a number?
-        if ($link <= $#links) {
-            $thislink = $links[$link];
-        } else {
-            carp "Link number $link is greater than maximum link $#links ",
-                 "on this page ($self->{uri})" unless $self->quiet;
-            return;
-        }
-    } else {                        # user provided a regexp
-        LINK: foreach my $l (@links) {
-            if ($l->[1] =~ /$link/) {
-                $thislink = $l;     # grab first match
-                last LINK;
-            }
-        }
-        unless ($thislink) {
-            carp "Can't find any link matching $link on this page ($self->{uri})" unless $self->quiet;
-            return;
-        }
-    }
-
-    $thislink = $thislink->[0];     # we just want the URL, not the text
-
-    $self->_push_page_stack();
-    $self->get( $thislink );
-
-    return 1;
-}
-
 =head1 Form field filling methods
-
-=head2 C<< $a->form($number|$name) >>
-
-Selects a form by number or name, depending on if it gets passed an
-all-numeric string or not.  If you have a form with a name that is all
-digits, you'll need to call C<< $a->form_name >> explicitly.
-
-This method is deprecated. Use C<form_name> or C<form_number> instead.
-
-=cut
-
-sub form {
-    my $self = shift;
-    my $arg = shift;
-
-    return $arg =~ /^\d+$/ ? $self->form_number($arg) : $self->form_name($arg);
-}
 
 =head2 C<< $a->form_number($number) >>
 
@@ -381,8 +387,9 @@ sub form_name {
     my $temp;
     my @matches = grep {defined($temp = $_->attr('name')) and ($temp eq $form) } @{$self->{forms}};
     if ( @matches ) {
+	require Carp;
         $self->{form} = $matches[0];
-        carp "There are ", scalar @matches, " forms named $form.  The first one was used."
+	Carp::carp "There are ", scalar @matches, " forms named $form.  The first one was used."
             if @matches > 1 && !$self->{quiet};
         return 1;
     } else {
@@ -484,7 +491,8 @@ sub tick {
     } # while
 
     # got this far?  Didn't find anything
-    die "No checkbox '$name' for value '$value' in form";
+    require Carp;
+    Carp::carp "No checkbox '$name' for value '$value' in form";
 } # tick()
 
 =head2 C<< $a->untick($name, $value) >>
@@ -551,7 +559,8 @@ are a list of key/value pairs, all of which are optional.
 
 =item * form_number => n
 
-Selects the I<n>th form (calls C<form_number()>)
+Selects the I<n>th form (calls C<form_number()>).  If this parm is not
+specified, the currently-selected form is used.
 
 =item * form_name => name
 
@@ -584,8 +593,10 @@ sub submit_form {
 
     if ( !$self->quiet ) {
 	for ( keys %args ) {
-	    carp qq{Unknown submit_form parameter "$_"}
-		unless /^(form_(number|name)|fields|button|x|y)$/;
+	    if ( !/^(form_(number|name)|fields|button|x|y)$/ ) {
+		require Carp;
+		Carp::carp qq{Unknown submit_form parameter "$_"}
+	    }
 	}
     }
 
@@ -594,9 +605,6 @@ sub submit_form {
     }
     elsif ( my $form_name = $args{'form_name'} ) {
         $self->form_name( $form_name ) ;
-    }
-    else {
-        $self->form_number( 1 ) ;
     }
 
     if ( my $fields = $args{'fields'} ) {
@@ -729,15 +737,17 @@ sub title {
 
 =head2 C<< $a->find_link() >>
 
-This method finds a link in the currently fetched page. It returns
-a reference to a two element array which has the link URL and link
-text, respectively. If it fails to find a link it returns undef.
-You can take the URL part and pass it to the C<get> method. The
-C<follow_link> method is recommended as it calls this method and
-also does the C<get> for you.
+This method finds a link in the currently fetched page. It returns a
+L<WWW::Mechanize::Link> object which describes the link.  (You'll probably
+be most interested in the C<url()> property.)  If it fails to find a
+link it returns undef.
 
-Note that C<< <FRAME SRC="..." >> tags are parsed out of the the
-HTML and treated as links so this method works with them.
+You can take the URL part and pass it to the C<get()> method.  If that's
+your plan, you might as well use the C<follow_link()> method directly,
+since it does the C<get()> for you automatically.
+
+Note that C<< <FRAME SRC="..."> >> tags are parsed out of the the HTML
+and treated as links so this method works with them.
 
 You can select which link to find by passing in one or more of these
 key/value pairs:
@@ -805,9 +815,6 @@ The array elements are:
 
 =item [0]: contents of the link
 
-For the C<< <A> >> tag, this is the C<HREF> attribute.
-For C<< <FRAME> >> or C<< <IFRAME> >>, it's the C<SRC> attribute.
-
 =item [1]: text enclosed by the tag
 
 =item [2]: the contents of the C<NAME> attribute
@@ -828,8 +835,10 @@ sub find_link {
 
     if ( !$self->quiet ) {
 	for ( keys %parms ) {
-	    carp qq{Unknown link-finding parameter "$_"}
-		unless /^(n|(text|url)(_regex)?)$/;
+	    if ( !/^(n|(text|url)(_regex)?)$/ ) {
+		require Carp;
+		Carp::carp qq{Unknown link-finding parameter "$_"}
+	    }
 	}
     }
 
@@ -1005,6 +1014,77 @@ sub request {
     return $self->{res};
 }
 
+=head1 Deprecated methods
+
+This methods have been replaced by more flexible and precise methods.
+Please use them instead.
+
+=head2 C<< $a->follow($string|$num) >>
+
+B<DEPRECATED> in favor of C<follow_link()>, which provides more
+flexibility.
+
+Follow a link.  If you provide a string, the first link whose text
+matches that string will be followed.  If you provide a number, it
+will be the I<$num>th link on the page.  Note that the links are
+0-based.
+
+Returns true if the link was found on the page or undef otherwise.
+
+=cut
+
+sub follow {
+    my ($self, $link) = @_;
+    my @links = @{$self->{links}};
+    my $thislink;
+    if ( $link =~ /^\d+$/ ) { # is a number?
+        if ($link <= $#links) {
+            $thislink = $links[$link];
+        } else {
+	    require Carp;
+	    Carp::carp "Link number $link is greater than maximum link $#links ",
+                 "on this page ($self->{uri})" unless $self->quiet;
+            return;
+        }
+    } else {                        # user provided a regexp
+        LINK: foreach my $l (@links) {
+            if ($l->[1] =~ /$link/) {
+                $thislink = $l;     # grab first match
+                last LINK;
+            }
+        }
+        unless ($thislink) {
+	    require Carp;
+	    Carp::carp "Can't find any link matching $link on this page ($self->{uri})" unless $self->quiet;
+            return;
+        }
+    }
+
+    $thislink = $thislink->[0];     # we just want the URL, not the text
+
+    $self->_push_page_stack();
+    $self->get( $thislink );
+
+    return 1;
+}
+
+=head2 C<< $a->form($number|$name) >>
+
+B<DEPRECATED> in favor of C<form_name()> or C<form_number()>.
+
+Selects a form by number or name, depending on if it gets passed an
+all-numeric string or not.  This means that if you have a form name
+that's all digits, this method will not do the right thing.
+
+=cut
+
+sub form {
+    my $self = shift;
+    my $arg = shift;
+
+    return $arg =~ /^\d+$/ ? $self->form_number($arg) : $self->form_name($arg);
+}
+
 =head1 Internal-only methods
 
 These methods are only used internally.  You probably don't need to 
@@ -1029,8 +1109,8 @@ sub _reset_page {
 
 =head2 C<< $a->_extract_links() >>
 
-Extracts HREF links from the content of a webpage.  The format of
-the links extracted is documented in find_all_links().
+Extracts links from the content of a webpage, and populates the C<{links}>
+property with L<WWW::Mechanize::Link> objects.
 
 =cut
 
@@ -1041,11 +1121,13 @@ my %urltags = (
 );
 
 sub _extract_links {
+    require WWW::Mechanize::Link;
+
     my $self = shift;
 
     my $p = HTML::TokeParser->new(\$self->{content});
     
-    my $links = ($self->{links} = []);
+    $self->{links} = [];
 
     while (my $token = $p->get_tag( keys %urltags )) {
         my $tag = $token->[0];
@@ -1054,12 +1136,15 @@ sub _extract_links {
 
         my $text = $p->get_trimmed_text("/$tag");
 	$text = "" unless defined $text;
-        push(@$links, [ $url, $text, $token->[1]{name} ]);
+        push( @{$self->{links}}, WWW::Mechanize::Link->new( $url, $text, $token->[1]{name}, $tag ) );
     }
 
+    # Old extract_links() returned a value.  Carp if someone expects
+    # this version to return something.
     if ( defined wantarray ) {
+	require Carp;
 	my $func = (caller(0))[3];
-	carp "$func does not return a useful value" if defined wantarray;
+	Carp::carp "$func does not return a useful value" if defined wantarray;
     }
 
     return;
@@ -1171,19 +1256,6 @@ or get the specs from the environment:
     wais_proxy=http://proxy.my.place/
     no_proxy="localhost,my.domain"
     export gopher_proxy wais_proxy no_proxy
-
-
-=head1 TODO
-
-Fix failures on t/back.t
-
-Make t/tick.t run off the local server
-
-Make it easier to save content.
-
-Make a method that finds all the IMG SRC
-
-Allow saving content to a file
 
 =head1 See Also
 

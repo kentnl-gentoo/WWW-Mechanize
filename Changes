@@ -1,5 +1,41 @@
-# $Id: Changes,v 1.32 2003/07/20 05:47:50 petdance Exp $
+# $Id: Changes,v 1.40 2003/07/22 17:10:41 petdance Exp $
 Revision history for Perl extension WWW::Mechanize
+
+0.55	July 22, 2003  12:10pm
+	[ENHANCEMENTS]
+	* Added WWW::Mechanize::Link object to encapsulate what used to
+	  be an array reference of stuff from find_link().  This replaces
+	  having to know that $link->[0] was URL and so on.  However,
+	  since WWW::Mechanize::Link is a blessed arrayref, it's backwards
+	  compatible with existing code.
+
+	* The WWW::Mechanize::Link object now tracks what tag the link
+	  came from (<A>, <FRAME> or <IFRAME>).
+
+	* No longer loads Carp unless and until it's necessary.
+
+	* submit_form() now uses the currently specified form if a
+	  form_name or form_number parm is not specified. (RT #2768)
+
+	* Added a translate table of handy browser strings that the
+	  agent() method recognizes.  These strings may be one of the
+	  following:
+
+	     * Windows IE 6
+	     * Windows Mozilla
+	     * Mac Safari
+	     * Mac Mozilla
+	     * Linux Mozilla
+	     * Linux Konqueror
+
+	  For example, "Windows IE 6" gets replaced with
+	  "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)".
+	  Thanks to Ed Silva for the list.
+
+	[DOCUMENTATION]
+	* Moved the deprecated methods to their own section.
+
+	* Removed the TODO list, since it's all in RT.
 
 0.54	July 20, 2003  12:47am
 	[THINGS THAT MIGHT BREAK YOUR CODE]
