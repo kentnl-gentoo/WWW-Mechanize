@@ -5,6 +5,7 @@ Makefile.PL
 etc/www-mechanize-logo.png
 lib/WWW/Mechanize.pm
 lib/WWW/Mechanize/Examples.pod
+lib/WWW/Mechanize/FAQ.pod
 lib/WWW/Mechanize/Link.pm
 script/mech-dump
 t/00.load.t
@@ -22,6 +23,7 @@ t/find_link.html
 t/find_link.t
 t/follow.t
 t/form.t
+t/form-parsing.t
 t/get.t
 t/google.html
 t/lib/Test/HTTP/LocalServer.pm

@@ -2,27 +2,26 @@ package WWW::Mechanize;
 
 =head1 NAME
 
-WWW::Mechanize - automate interaction with websites
+WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 0.60
+Version 0.61
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.59 2003/09/23 03:02:03 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.62 2003/10/06 23:02:27 petdance Exp $
 
 =cut
 
-our $VERSION = "0.60";
+our $VERSION = "0.61";
 
 =head1 SYNOPSIS
 
-C<WWW::Mechanize>, or Mech for short, was designed to help you
-automate interaction with a website. It supports performing a
-sequence of page fetches including following links and submitting
-forms. Each fetched page is parsed and its links and forms are
-extracted. A link or a form can be selected, form fields can be
-filled and the next page can be fetched. Mech also stores a history
-of the URLs you've visited, which can be queried and revisited.
+C<WWW::Mechanize>, or Mech for short, helps you automate interaction with
+a website. It supports performing a sequence of page fetches including
+following links and submitting forms. Each fetched page is parsed and
+its links and forms are extracted. A link or a form can be selected, form
+fields can be filled and the next page can be fetched. Mech also stores
+a history of the URLs you've visited, which can be queried and revisited.
 
     use WWW::Mechanize;
     my $a = WWW::Mechanize->new();
@@ -48,9 +47,9 @@ of the URLs you've visited, which can be queried and revisited.
     );
 
 
-Mech is well suited for use in testing web applications.  If you
-use one of the Test::* modules, you can check the fetched content
-and use that as input to a test call.
+Mech is well suited for use in testing web applications.  If you use
+one of the Test::*, like L<Test::HTML::Lint> modules, you can check the
+fetched content and use that as input to a test call.
 
     use Test::More;
     like( $a->content(), qr/$expected/, "Got expected content" );
@@ -93,6 +92,13 @@ link if your bug isn't already reported.
 =back
 
 =head1 OTHER DOCUMENTATION
+
+=head2 I<Spidering Hacks>
+
+I<Spidering Hacks> has three hacks by Andy Lester that discuss Mechanize.
+See L<http://www.oreilly.com/catalog/spiderhks/> for more info.
+
+=head2 Online resources
 
 =over 4
 
@@ -250,7 +256,7 @@ sub known_agent_aliases {
 
 =head2 C<< $a->get($url) >>
 
-Given a URL/URI, fetches it.  Returns an C<HTTP::Response> object.
+Given a URL/URI, fetches it.  Returns an L<HTTP::Response> object.
 I<$url> can be a well-formed URL string, or a URI::* object.
 
 The results are stored internally in the agent object, but you don't
@@ -258,7 +264,7 @@ know that.  Just use the accessors listed below.  Poking at the internals
 is deprecated and subject to change in the future.
 
 C<get()> is a well-behaved overloaded version of the method in
-C<LWP::UserAgent>.  This lets you do things like
+L<LWP::UserAgent>.  This lets you do things like
 
     $mech->get( $url, ":content_file"=>$tempfile );
 
@@ -271,8 +277,8 @@ sub get {
     my $self = shift;
     my $uri = shift;
 
-    $uri = $self->{base}
-	    ? URI->new_abs( $uri, $self->{base} )
+    $uri = $self->base
+	    ? URI->new_abs( $uri, $self->base )
 	    : URI->new( $uri );
 
     return $self->SUPER::get( $uri->as_string, @_ );
@@ -402,13 +408,11 @@ sub form_name {
     my ($self, $form) = @_;
 
     my $temp;
-    my @matches = grep {defined($temp = $_->attr('name')) and ($temp eq $form) } @{$self->{forms}};
+    my @matches = grep {defined($temp = $_->attr('name')) and ($temp eq $form) } $self->forms;
     if ( @matches ) {
-	require Carp;
-        $self->{form} = $matches[0];
 	$self->_carp( "There are ", scalar @matches, " forms named $form.  The first one was used." )
 	    if @matches > 1;
-        return $self->{form};
+        return $self->{form} = $matches[0];
     } else {
 	$self->_carp( qq{ There is no form named "$form"} );
         return undef;
@@ -457,21 +461,22 @@ defaulting to the first form on the page).
 =cut
 
 sub set_fields {
-    my ($self, %fields ) = @_;
+    my $self = shift;
+    my %fields = @_;
 
-    my $form = $self->{form};
+    my $form = $self->current_form;
 
-    while( my ( $field, $value ) = each %fields ) {
+    while ( my ( $field, $value ) = each %fields ) {
         if ( ref $value eq 'ARRAY' ) {
             $form->find_input( $field, undef,
                          $value->[1])->value($value->[0] );
         } else {
             $form->value($field => $value);
         }
-    }
-}
+    } # while
+} # set_fields()
 
-=head2 C<< $a->tick($name, $value [, $set] ) >>
+=head2 C<< $a->tick( $name, $value [, $set] ) >>
 
 'Ticks' the first checkbox that has both the name and value assoicated
 with it on the current form.  Dies if there is no named check box for
@@ -487,9 +492,8 @@ sub tick {
     my $set = @_ ? shift : 1;  # default to 1 if not passed
 
     # loop though all the inputs
-    my $input;
     my $index = 0;
-    while($input = $self->current_form->find_input($name,"checkbox",$index)) {
+    while ( my $input = $self->current_form->find_input( $name, "checkbox", $index ) ) {
 	# Can't guarantee that the first element will be undef and the second
 	# element will be the right name
 	foreach my $val ($input->possible_values()) {
@@ -655,7 +659,7 @@ Returns the current URI.
 
 =head2 C<< $a->response() >> or C<< $a->res() >>
 
-Return the current response as an C<HTTP::Response> object.
+Return the current response as an L<HTTP::Response> object.
 
 Synonym for C<< $a->response() >>
 
@@ -679,12 +683,12 @@ Returns the content for the response
 
 When called in a list context, returns a list of the forms found in
 the last fetched page. In a scalar context, returns a reference to
-an array with those forms. The forms returned are all C<HTML::Form>
+an array with those forms. The forms returned are all L<HTML::Form>
 objects.
 
 =head2 C<< $a->current_form() >>
 
-Returns the current form as an C<HTML::Form> object.  I'd call this
+Returns the current form as an L<HTML::Form> object.  I'd call this
 C<form()> except that C<form()> already exists and sets the current_form.
 
 =head2 C<< $a->links() >>
@@ -727,7 +731,7 @@ sub forms {
 =head2 C<< $a->title() >>
 
 Returns the contents of the C<< <TITLE> >> tag, as parsed by
-HTML::HeadParser.  Returns undef if the content is not HTML.
+L<HTML::HeadParser>.  Returns undef if the content is not HTML.
 
 =cut
 
@@ -815,7 +819,7 @@ text of "News" and with "cnn.com" in the URL, use:
 
 The return value is a reference to an array containing
 a L<WWW::Mechanize::Link> object for every link in 
-C<< $self->{content} >>.  
+C<< $self->content >>.  
 
 The links come from the following:
 
@@ -954,7 +958,7 @@ sub quiet {
     return $self->{quiet};
 }
 
-=head1 Overridden C<LWP::UserAgent> methods
+=head1 Overridden L<LWP::UserAgent> methods
 
 =head2 C<< $a->redirect_ok() >>
 
@@ -1014,14 +1018,14 @@ sub request {
     }
     $self->{req} = $request;
     $self->{redirected_uri} = $request->uri->as_string;
-    $self->{res} = $self->_make_request( $request, @_ );
+    my $res = $self->{res} = $self->_make_request( $request, @_ );
 
     # These internal hash elements should be dropped in favor of
     # the accessors soon. -- 1/19/03
-    $self->{status}  = $self->{res}->code;
-    $self->{base}    = $self->{res}->base;
-    $self->{ct}      = $self->{res}->content_type || "";
-    $self->{content} = $self->{res}->content;
+    $self->{status}  = $res->code;
+    $self->{base}    = $res->base;
+    $self->{ct}      = $res->content_type || "";
+    $self->{content} = $res->content;
     if ( $self->{res}->is_success ) {
 	$self->{uri} = $self->{redirected_uri};
 	$self->{last_uri} = $self->{uri};
@@ -1029,12 +1033,12 @@ sub request {
 
     $self->_reset_page();
     if ( $self->is_html ) {
-        $self->{forms} = [ HTML::Form->parse($self->{content}, $self->{res}->base) ];
+        $self->{forms} = [ HTML::Form->parse($self->content, $self->base) ];
         $self->{form}  = $self->{forms}->[0];
         $self->_extract_links();
     }
 
-    return $self->{res};
+    return $res;
 }
 
 =head2 C<_make_request()>
@@ -1070,7 +1074,7 @@ Returns true if the link was found on the page or undef otherwise.
 
 sub follow {
     my ($self, $link) = @_;
-    my @links = @{$self->{links}};
+    my @links = $self->links;
     my $thislink;
     if ( $link =~ /^\d+$/ ) { # is a number?
         if ($link <= $#links) {
@@ -1251,67 +1255,6 @@ sub _carp {
     }
     return;
 }
-
-
-=head1 FAQ
-
-=head2 Why don't https:// URLs work?
-
-You probably don't have L<IO::Socket::SSL> installed.
-
-=head2 I tried to [such-and-such] and I got this weird error.
-
-Are you checking your errors?
-
-Are you sure?
-
-Are you checking that your action succeeded after every action?
-
-Are you sure?
-
-For example, if you try this:
-
-    $mech->get( "http://my.site.com" );
-    $mech->follow_link( "foo" );
-
-and the C<get> call fails for some reason, then the Mech internals
-will be unusable for the C<follow_link> and you'll get a weird
-error.  You B<must>, after every action that GETs or POSTs a page,
-check that Mech succeeded, or all bets are off.
-
-    $mech->get( "http://my.site.com" );
-    die "Can't even get the home page: ", $mech->response->status_line
-	unless $mech->success;
-
-    $mech->follow_link( "foo" );
-    die "Foo link failed: ", $mech->response->status_line
-	unless $mech->success;
-
-I guarantee you this will be the very first thing that I ask if
-you mail me about a problem with Mech.
-
-=head2 Can I do [such-and-such] with WWW::Mechanize?
-
-If it's possible with LWP::UserAgent, then yes.  WWW::Mechanize is
-a subclass of L<LWP::UserAgent>, so all the wondrous magic of that
-class is inherited.
-
-=head2 How do I use WWW::Mechanize through a proxy server?
-
-See the docs in LWP::UserAgent on how to use the proxy.  Short
-version:
-
-    $a->proxy(['http', 'ftp'], 'http://proxy.example.com:8000/');
-
-or get the specs from the environment:
-
-    $a->env_proxy();
-
-    # Environment set like so:
-    gopher_proxy=http://proxy.my.place/
-    wais_proxy=http://proxy.my.place/
-    no_proxy="localhost,my.domain"
-    export gopher_proxy wais_proxy no_proxy
 
 =head1 See Also
 
