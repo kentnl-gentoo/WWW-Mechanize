@@ -1,6 +1,45 @@
-# $Id: Changes,v 1.24 2003/07/17 14:57:42 petdance Exp $
+# $Id: Changes,v 1.32 2003/07/20 05:47:50 petdance Exp $
 Revision history for Perl extension WWW::Mechanize
 
+0.54	July 20, 2003  12:47am
+	[THINGS THAT MIGHT BREAK YOUR CODE]
+	* See the enhancements on extract_links() and failures.
+	  Also, see the note about #2811 below.
+
+	[ENHANCEMENTS]
+	* find_all_links() and find_link() can specify multiple
+	  text or url parameters, which will be anded together.
+	  Before, there was a pecking order in which parm took
+	  precedence, and any extras were ignored.  To find the
+	  first link with text of "news" and with "cnn.com" in the
+	  URL, use:
+
+	    $a->find_link( text => "news", url_regex => qr/cnn\.com/ );
+
+	  Thanks to Greg Davies for the idea. (RT #2973)
+
+	* extract_links() is now an internal-only method, named
+	  _extract_links().  If you're using it, don't.  Use
+	  find_all_links() instead, which is more flexible.
+
+	* Now, when there is a failure of some kind, certain fields
+	  like title, forms and links are cleared out.  Before, you'd
+	  have leftover links from the previous page.  I suspect that
+	  at least one person out there has been mistakenly relying
+	  on this behavior, and his code will now break, but that's
+	  a good thing.  See t/failure.t for more.
+
+	[FIXES]
+	* No longer tries to tech mech-forms if you're not installing
+	  it.
+	* Fixed #2811: The definition of the link text contents
+	  did not match the documentation.
+
+	[DOCUMENTATION]
+	* Added a sample CPAN search from Ed Silva.
+	* Added link to the Perl Advent Calendar.
+
+	
 0.53	July 16, 2003
 	This version ONLY fixes some test-file problems.  There are no
 	functionality enhancements or bug fixes in WWW::Mechanize itself.

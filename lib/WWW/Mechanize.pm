@@ -6,13 +6,13 @@ WWW::Mechanize - automate interaction with websites
 
 =head1 VERSION
 
-Version 0.53
+Version 0.54
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.24 2003/07/17 14:57:42 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.32 2003/07/20 05:47:51 petdance Exp $
 
 =cut
 
-our $VERSION = "0.53";
+our $VERSION = "0.54";
 
 =head1 SYNOPSIS
 
@@ -96,6 +96,10 @@ out of date: He manually walks the list of links hunting for matches,
 which wouldn't have been necessary if the C<find_link()> method existed
 at press time.
 
+=item * L<http://www.perladvent.org/2002/16th/>
+
+WWW::Mechanize on the Perl Advent Calendar, by Mark Fowler.
+
 =back
 
 =cut
@@ -150,13 +154,16 @@ sub new {
     );
 
     my $self = $class->SUPER::new( %default_parms, @_ );
+    bless $self, $class;
 
     $self->{page_stack} = [];
     $self->{quiet} = 0;
     $self->env_proxy();
     push( @{$self->requests_redirectable}, 'POST' );
 
-    return bless $self, $class;
+    $self->_reset_page;
+
+    return $self;
 }
 
 =head1 Page-fetching methods
@@ -720,58 +727,6 @@ sub title {
 
 =head1 Content-handling methods
 
-=head2 C<< $a->extract_links() >>
-
-Extracts HREF links from the content of a webpage.
-
-The return value is a reference to an array containing
-an array reference for every C<< <A> >>, C<< <FRAME> >>
-or C<< <IFRAME> >> tag in C<< $self->{content} >>.  
-
-The array elements for the C<< <A> >> tag are: 
-
-=over 4
-
-=item [0]: contents of the C<href> attribute
-
-=item [1]: text enclosed by the C<< <A> >> tag
-
-=item [2]: the contents of the C<name> attribute
-
-=back
-
-The array elements for the C<< <FRAME> >> and 
-C<< <IFRAME> >> tags are:
-
-=over 4
-
-=item [0]: contents of the C<src> attribute
-
-=item [1]: text enclosed by the C<< <FRAME> >> tag
-
-=item [2]: contents of the C<name> attribute
-
-=back
-
-=cut
-
-sub extract_links {
-    my $self = shift;
-    my $p = HTML::TokeParser->new(\$self->{content});
-    my @links;
-
-    while (my $token = $p->get_tag("a", "frame", "iframe")) {
-        my $tag_is_a = ($token->[0] eq 'a');
-        my $url = $tag_is_a ? $token->[1]{href} : $token->[1]{src};
-        next unless defined $url;   # probably just a name link
-
-        my $text = $tag_is_a ? $p->get_trimmed_text("/a") : $token->[1]{name};
-        my $name = $token->[1]{name};
-        push(@links, [$url, $text, $name]);
-    }
-    return \@links;
-}
-
 =head2 C<< $a->find_link() >>
 
 This method finds a link in the currently fetched page. It returns
@@ -784,7 +739,7 @@ also does the C<get> for you.
 Note that C<< <FRAME SRC="..." >> tags are parsed out of the the
 HTML and treated as links so this method works with them.
 
-You can select which link to find by passing in one of these
+You can select which link to find by passing in one or more of these
 key/value pairs:
 
 =over 4
@@ -832,6 +787,33 @@ If C<n> is not specified, it defaults to 1.  Therefore, if you don't
 specify any parms, this method defaults to finding the first link on the
 page.
 
+Note that you can specify multiple text or URL parameters, which
+will be ANDed together.  For example, to find the first link with
+text of "News" and with "cnn.com" in the URL, use:
+
+    $a->find_link( text => "News", url_regex => qr/cnn\.com/ );
+
+=head2 C<< $a->find_link() >>: link format
+
+The return value is a reference to an array containing
+an array reference for every C<< <A> >>, C<< <FRAME> >>
+or C<< <IFRAME> >> tag in C<< $self->{content} >>.  
+
+The array elements are:
+
+=over 4
+
+=item [0]: contents of the link
+
+For the C<< <A> >> tag, this is the C<HREF> attribute.
+For C<< <FRAME> >> or C<< <IFRAME> >>, it's the C<SRC> attribute.
+
+=item [1]: text enclosed by the tag
+
+=item [2]: the contents of the C<NAME> attribute
+
+=back
+
 =cut
 
 sub find_link {
@@ -842,8 +824,6 @@ sub find_link {
 
     return unless @links ;
 
-    my $match;
-    my $arg;
     my $wantall = ( $parms{n} eq "all" );
 
     if ( !$self->quiet ) {
@@ -853,26 +833,24 @@ sub find_link {
 	}
     }
 
-    if ( defined ($arg = $parms{url}) ) {
-	$match = sub { $_[0]->[0] eq $arg };
+    my @conditions;
+    push @conditions, q/ $_[0]->[0] eq $parms{url} /	    if defined $parms{url};
+    push @conditions, q/ $_[0]->[0] =~ $parms{url_regex} /  if defined $parms{url_regex};
+    push @conditions, q/ $_[0]->[1] eq $parms{text} /	    if defined $parms{text};
+    push @conditions, q/ $_[0]->[1] =~ $parms{text_regex} / if defined $parms{text_regex};
 
-    } elsif ( defined ($arg = $parms{url_regex}) ) {
-	$match = sub { $_[0]->[0] =~ $arg }
-
-    } elsif ( defined ($arg = $parms{text}) ) {
-	$match = sub { $_[0]->[1] eq $arg };
-
-    } elsif ( defined ($arg = $parms{text_regex} )) {
-	$match = sub { $_[0]->[1] =~ $arg }
-
+    my $matchfunc;
+    if ( @conditions ) {
+	local $" = " && ";
+	$matchfunc = eval "sub { @conditions }";
     } else {
-	$match = sub { 1 };
+	$matchfunc = sub{1};
     }
 
     my $nmatches = 0;
     my @matches;
     for my $link ( @links ) {
-	if ( $match->($link) ) {
+	if ( $matchfunc->($link) ) {
 	    if ( $wantall ) {
 		push( @matches, $link );
 	    } else {
@@ -948,10 +926,144 @@ sub quiet {
     return $self->{quiet};
 }
 
-=head1 INTERNAL METHODS
+=head1 Overridden C<LWP::UserAgent> methods
+
+=head2 C<< $a->redirect_ok() >>
+
+An overloaded version of C<redirect_ok()> in L<LWP::UserAgent>.
+This method is used to determine whether a redirection in the request
+should be followed.
+
+It's also used to keep track of the last URI redirected to. Also
+if the redirection was from a POST, it changes the HTTP method
+to GET. This does not conform with the RFCs, but it is how many
+browser user agent implementations behave. As we are trying to model
+them, we must unfortunately mimic their erroneous reaction. See
+L<http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.3> for
+details on correct behaviour.
+
+=cut
+
+sub redirect_ok {
+    my $self = shift;
+    my $prospective_request = shift;
+
+    my $ok = $self->SUPER::redirect_ok( $prospective_request );
+    if ( $ok ) {
+	$self->{redirected_uri} = $prospective_request->uri;
+
+	# Mimic erroneous browser behaviour by changing the method.
+	$prospective_request->method("GET") if $prospective_request->method eq "POST";
+    }
+
+    return $ok;
+};
+
+
+=head2 C<< $a->request( $request [, $arg [, $size]]) >>
+
+Overloaded version of C<request()> in L<LWP::UserAgent>.  Performs
+the actual request.  Normally, if you're using WWW::Mechanize, it'd
+because you don't want to deal with this level of stuff anyway.
+
+Note that C<$request> will be modified.
+
+Returns an L<HTTP::Response> object.
+
+=cut
+
+sub request {
+    my $self = shift;
+    my $request = shift;
+
+    $request->header( Referer => $self->{last_uri} ) if $self->{last_uri};
+    while ( my($key,$value) = each %WWW::Mechanize::headers ) {
+        $request->header( $key => $value );
+    }
+    $self->{req} = $request;
+    $self->{redirected_uri} = $request->uri;
+    $self->{res} = $self->SUPER::request( $request, @_ );
+
+    # These internal hash elements should be dropped in favor of
+    # the accessors soon. -- 1/19/03
+    $self->{status}  = $self->{res}->code;
+    $self->{base}    = $self->{res}->base;
+    $self->{ct}      = $self->{res}->content_type || "";
+    $self->{content} = $self->{res}->content;
+    if ( $self->{res}->is_success ) {
+	$self->{uri} = $self->{redirected_uri};
+	$self->{last_uri} = $self->{uri};
+    }
+
+    $self->_reset_page();
+    if ( $self->is_html ) {
+        $self->{forms} = [ HTML::Form->parse($self->{content}, $self->{res}->base) ];
+        $self->{form}  = $self->{forms}->[0];
+        $self->_extract_links();
+    }
+
+    return $self->{res};
+}
+
+=head1 Internal-only methods
 
 These methods are only used internally.  You probably don't need to 
 know about them.
+
+=head2 C<< $a->_reset_page() >>
+
+Resets the internal fields that track page parsed stuff.
+
+=cut
+
+sub _reset_page {
+    my $self = shift;
+
+    $self->{links} = [];
+    delete $self->{title};
+    $self->{forms} = [];
+    delete $self->{form};
+    
+    return;
+}
+
+=head2 C<< $a->_extract_links() >>
+
+Extracts HREF links from the content of a webpage.  The format of
+the links extracted is documented in find_all_links().
+
+=cut
+
+my %urltags = (
+    a => "href",
+    frame => "src",
+    iframe => "src",
+);
+
+sub _extract_links {
+    my $self = shift;
+
+    my $p = HTML::TokeParser->new(\$self->{content});
+    
+    my $links = ($self->{links} = []);
+
+    while (my $token = $p->get_tag( keys %urltags )) {
+        my $tag = $token->[0];
+        my $url = $token->[1]{$urltags{$tag}};
+        next unless defined $url;   # probably just a name link
+
+        my $text = $p->get_trimmed_text("/$tag");
+	$text = "" unless defined $text;
+        push(@$links, [ $url, $text, $token->[1]{name} ]);
+    }
+
+    if ( defined wantarray ) {
+	my $func = (caller(0))[3];
+	carp "$func does not return a useful value" if defined wantarray;
+    }
+
+    return;
+}
 
 =head2 C<< $a->_push_page_stack() >> and C<< $a->_pop_page_stack() >>
 
@@ -1000,84 +1112,11 @@ sub _pop_page_stack {
 }
 
 
-=head2 C<< $a->redirect_ok() >>
-
-An overloaded version of C<redirect_ok()> in L<LWP::UserAgent>.
-This method is used to determine whether a redirection in the request
-should be followed.
-
-It's also used to keep track of the last URI redirected to. Also
-if the redirection was from a POST, it changes the HTTP method
-to GET. This does not conform with the RFCs, but it is how many
-browser user agent implementations behave. As we are trying to model
-them, we must unfortunately mimic their erroneous reaction. See
-L<http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.3> for
-details on correct behaviour.
-
-=cut
-
-sub redirect_ok {
-    my $self = shift;
-    my $prospective_request = shift;
-
-    my $ok = $self->SUPER::redirect_ok( $prospective_request );
-    if ( $ok ) {
-	$self->{redirected_uri} = $prospective_request->uri;
-
-	# Mimic erroneous browser behaviour by changing the method.
-	$prospective_request->method("GET") if $prospective_request->method eq "POST";
-    }
-
-    return $ok;
-};
-
-
-=head2 C<< $a->request( $request [, $arg [, $size]]) >>
-
-Overloaded version of C<request()> in L<LWP::UserAgent>.  Performs
-the actual request.  Normally, if you're using WWW::Mechanize, it'd
-because you don't want to deal with this level of stuff anyway.
-
-Note that C<$request> will be modified.
-
-Returns an L<HTTP::Response> object.
-
-=cut
-
-
-sub request {
-    my $self = shift;
-    my $request = shift;
-
-    $request->header( Referer => $self->{last_uri} ) if $self->{last_uri};
-    while ( my($key,$value) = each %WWW::Mechanize::headers ) {
-        $request->header( $key => $value );
-    }
-    $self->{req} = $request;
-    $self->{redirected_uri} = $request->uri;
-    $self->{res} = $self->SUPER::request( $request, @_ );
-
-    # These internal hash elements should be dropped in favor of
-    # the accessors soon. -- 1/19/03
-    $self->{status}  = $self->{res}->code;
-    $self->{base}    = $self->{res}->base;
-    $self->{ct}      = $self->{res}->content_type || "";
-    $self->{content} = $self->{res}->content;
-    if ( $self->{res}->is_success ) {
-	$self->{uri} = $self->{redirected_uri};
-	$self->{last_uri} = $self->{uri};
-    }
-
-    if ( $self->is_html ) {
-        $self->{forms} = [ HTML::Form->parse($self->{content}, $self->{res}->base) ];
-        $self->{form}  = @{$self->{forms}} ? $self->{forms}->[0] : undef;
-        $self->{links} = $self->extract_links();
-    }
-
-    return $self->{res};
-}
-
 =head1 FAQ
+
+=head2 Why don't https:// URLs work?
+
+You probably don't have L<IO::Socket::SSL> installed.
 
 =head2 I tried to [such-and-such] and I got this weird error.
 
@@ -1146,19 +1185,19 @@ Make a method that finds all the IMG SRC
 
 Allow saving content to a file
 
-=head1 SEE ALSO
+=head1 See Also
 
 See also L<WWW::Mechanize::Examples> for sample code.
 L<WWW::Mechanize::FormFiller> and L<WWW::Mechanize::Shell> are add-ons
 that turn Mechanize into more of a scripting tool.
 
-=head1 REQUESTS & BUGS
+=head1 Requests & Bugs
 
 Please report any requests, suggestions or (gasp!) bugs via the system
 at http://rt.cpan.org/, or email to bug-WWW-Mechanize@rt.cpan.org.
 This makes it much easier for me to track things.
 
-=head1 AUTHOR
+=head1 Author
 
 Copyright 2003 Andy Lester <andy@petdance.com>
 
