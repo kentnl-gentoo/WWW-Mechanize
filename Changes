@@ -1,7 +1,13 @@
-# $Id: Changes,v 1.106 2004/02/29 05:29:09 petdance Exp $
+# $Id: Changes,v 1.109 2004/03/03 05:44:44 petdance Exp $
 Revision history for Perl extension WWW::Mechanize
 
-0.73_01
+0.73_02 Tue Mar  2 23:51:05 CST 2004
+        [FIXES]
+        * The local changes use localhost as the local host name, instead
+          of whatever host name that might be on the box, but not in DNS.
+          Thanks to David Wheeler for letting me play on his box.
+
+0.73_01 Sat Feb 28 23:55:46 CST 2004
         [ENHANCEMENTS]
         * URLs in META REFRESH tags are now treated as links.
         * t/taint.t makes sure that things that should be tainted are.
