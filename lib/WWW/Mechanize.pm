@@ -6,13 +6,13 @@ WWW::Mechanize - automate interaction with websites
 
 =head1 VERSION
 
-Version 0.55
+Version 0.56
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.41 2003/07/22 17:06:27 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.45 2003/07/24 17:16:29 petdance Exp $
 
 =cut
 
-our $VERSION = "0.55";
+our $VERSION = "0.56";
 
 =head1 SYNOPSIS
 
@@ -137,9 +137,6 @@ as in:
 
     my $a = WWW::Mechanize->new( agent=>"wonderbot 1.01" );
 
-Note that this agent can be one of the magic strings defined in L<agent()>
-below.
-
 If you want none of the overhead of a cookie jar, or don't want your
 bot accepting cookies, you have to explicitly disallow it, like so:
 
@@ -163,7 +160,6 @@ sub new {
     $self->{page_stack} = [];
     $self->{quiet} = 0;
     $self->env_proxy();
-    $self->agent($parms{agent}) if defined $parms{agent};
     push( @{$self->requests_redirectable}, 'POST' );
 
     $self->_reset_page;
@@ -171,12 +167,10 @@ sub new {
     return $self;
 }
 
-=head2 C<< $a->agent( [I<$str>] ) >>
+=head2 C<< $a->agent_alias( $alias ) >>
 
-Without I<$str>, returns the name of the user agent as identified to servers.
-
-If I<$str> is passed, sets the agent string to the I<$str>.  I<$str>
-can be any string, but if it's one of the following magic strings:
+Sets the user agent string to the expanded version from a table of actual user strings.
+I<$alias> can be one of the following:
 
 =over 4
 
@@ -196,17 +190,17 @@ can be any string, but if it's one of the following magic strings:
 
 then it will be replaced with a more interesting one.  For instance,
 
-    C<< $a->agent( 'Windows IE 6' );
+    $a->agent_alias( 'Windows IE 6' );
 
 sets your User-Agent to
 
     Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)
 
-Whenever the string is set, the old value is returned.
+The list of valid aliases can be returned from C<known_agent_aliases()>.
 
 =cut
 
-our %known_agents = (
+my %known_agents = (
     'Windows IE 6'	=> 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)',
     'Windows Mozilla'	=> 'Mozilla/5.0 (Windows; U; Windows NT 5.0; en-US; rv:1.4b) Gecko/20030516 Mozilla Firebird/0.6',
     'Mac Safari'	=> 'Mozilla/5.0 (Macintosh; U; PPC Mac OS X; en-us) AppleWebKit/85 (KHTML, like Gecko) Safari/85',
@@ -215,17 +209,26 @@ our %known_agents = (
     'Linux Konqueror'	=> 'Mozilla/5.0 (compatible; Konqueror/3; Linux)',
 );
 
-sub agent {
+sub agent_alias {
     my $self = shift;
+    my $alias = shift;
 
-    if ( @_ ) {
-	my $str = shift;
-	$str = $known_agents{$str} if defined $known_agents{$str};
-	return $self->SUPER::agent( $str );
+    if ( defined $known_agents{$alias} ) {
+	return $self->agent( $known_agents{$alias} );
     } else {
-	return $self->SUPER::agent();
+	$self->_carp( qq{Unknown agent alias "$alias"} );
+	return $self->agent();
     }
+}
 
+=head2 C<known_agent_aliases()>
+
+Returns a list of all the agent aliases that Mech knows about.
+
+=cut
+
+sub known_agent_aliases {
+    return sort keys %known_agents;
 }
 
 =head1 Page-fetching methods
@@ -332,9 +335,8 @@ sub follow_link {
     my %parms = ( n=>1, @_ );
 
     if ( $parms{n} eq "all" ) {
-	require Carp;
 	delete $parms{n};
-	Carp::carp qq{follow_link(n=>"all") is not valid};
+	$self->_carp( qq{follow_link(n=>"all") is not valid} );
     }
 
     my $response;
@@ -364,10 +366,7 @@ sub form_number {
         $self->{form} = $self->{forms}->[$form-1];
         return 1;
     } else {
-	unless ( $self->{quiet} ) {
-	    require Carp;
-	    Carp::carp "There is no form numbered $form";
-	}
+	$self->_carp( "There is no form numbered $form" );
         return 0;
     }
 }
@@ -389,14 +388,11 @@ sub form_name {
     if ( @matches ) {
 	require Carp;
         $self->{form} = $matches[0];
-	Carp::carp "There are ", scalar @matches, " forms named $form.  The first one was used."
-            if @matches > 1 && !$self->{quiet};
+	$self->_carp( "There are ", scalar @matches, " forms named $form.  The first one was used." )
+	    if @matches > 1;
         return 1;
     } else {
-	unless ( $self->{quiet} ) {
-	    require Carp;
-	    Carp::carp "There is no form named $form";
-	}
+	$self->_carp( qq{ There is no form named "$form"} );
         return 0;
     }
 }
@@ -467,7 +463,7 @@ will cause the checkbox to be unticked.
 =cut
 
 sub tick {
-    my $this = shift;
+    my $self = shift;
     my $name = shift;
     my $value = shift;
     my $set = @_ ? shift : 1;  # default to 1 if not passed
@@ -475,7 +471,7 @@ sub tick {
     # loop though all the inputs
     my $input;
     my $index = 0;
-    while($input = $this->current_form->find_input($name,"checkbox",$index)) {
+    while($input = $self->current_form->find_input($name,"checkbox",$index)) {
 	# Can't guarantee that the first element will be undef and the second
 	# element will be the right name
 	foreach my $val ($input->possible_values()) {
@@ -490,9 +486,8 @@ sub tick {
 	$index++;
     } # while
 
-    # got this far?  Didn't find anything
-    require Carp;
-    Carp::carp "No checkbox '$name' for value '$value' in form";
+    # got self far?  Didn't find anything
+    $self->_carp( qq{No checkbox "$name" for value "$value" in form} );
 } # tick()
 
 =head2 C<< $a->untick($name, $value) >>
@@ -591,12 +586,9 @@ Returns an HTTP::Response object.
 sub submit_form {
     my( $self, %args ) = @_ ;
 
-    if ( !$self->quiet ) {
-	for ( keys %args ) {
-	    if ( !/^(form_(number|name)|fields|button|x|y)$/ ) {
-		require Carp;
-		Carp::carp qq{Unknown submit_form parameter "$_"}
-	    }
+    for ( keys %args ) {
+	if ( !/^(form_(number|name)|fields|button|x|y)$/ ) {
+	    $self->_carp( qq{Unknown submit_form parameter "$_"} );
 	}
     }
 
@@ -833,12 +825,9 @@ sub find_link {
 
     my $wantall = ( $parms{n} eq "all" );
 
-    if ( !$self->quiet ) {
-	for ( keys %parms ) {
-	    if ( !/^(n|(text|url)(_regex)?)$/ ) {
-		require Carp;
-		Carp::carp qq{Unknown link-finding parameter "$_"}
-	    }
+    for ( keys %parms ) {
+	if ( !/^(n|(text|url)(_regex)?)$/ ) {
+	    $self->_carp( qq{Unknown link-finding parameter "$_"} );
 	}
     }
 
@@ -1041,9 +1030,7 @@ sub follow {
         if ($link <= $#links) {
             $thislink = $links[$link];
         } else {
-	    require Carp;
-	    Carp::carp "Link number $link is greater than maximum link $#links ",
-                 "on this page ($self->{uri})" unless $self->quiet;
+	    $self->_carp( "Link number $link is greater than maximum link $#links on this page ($self->{uri})" );
             return;
         }
     } else {                        # user provided a regexp
@@ -1054,8 +1041,7 @@ sub follow {
             }
         }
         unless ($thislink) {
-	    require Carp;
-	    Carp::carp "Can't find any link matching $link on this page ($self->{uri})" unless $self->quiet;
+	    $self->_carp( "Can't find any link matching $link on this page ($self->{uri})" );
             return;
         }
     }
@@ -1142,9 +1128,8 @@ sub _extract_links {
     # Old extract_links() returned a value.  Carp if someone expects
     # this version to return something.
     if ( defined wantarray ) {
-	require Carp;
 	my $func = (caller(0))[3];
-	Carp::carp "$func does not return a useful value" if defined wantarray;
+	$self->_carp( "$func does not return a useful value" );
     }
 
     return;
@@ -1194,6 +1179,20 @@ sub _pop_page_stack {
     }
 
     return 1;
+}
+
+sub _carp {
+    my $self = shift;
+
+    if ( !$self->quiet ) {
+	eval "require Carp";
+	if ( $@ ) {
+	    warn @_;
+	} else {
+	    &Carp::carp; # pass thru
+	}
+    }
+    return;
 }
 
 
