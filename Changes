@@ -1,5 +1,22 @@
-# $Id: Changes,v 1.156 2004/11/01 01:07:59 markjugg Exp $
+# $Id: Changes,v 1.162 2004/11/06 05:27:37 petdance Exp $
 Revision history for Perl extension WWW::Mechanize
+
+1.05_04 Fri Nov  5 23:35:38 CST 2004
+        [ENHANCEMENTS]
+        * Added WWW::Mechanize::Image object for representing images.
+        * Improved the regex on the URL for META tags.
+        * Added --images flag to mech-dump.
+
+        [FIXES]
+        * When parsing urls out of meta refresh tags, "url" may now be
+          uppercase (RT#8230)
+
+        * Behavior of back() fixed in a number of cases (RT#8109  reported by
+          Josh Purinton, patched by Dominique Quatravaux)
+
+        [INTERNALS]
+        * Mark figured out to how to prevent his text editor from putting tabs
+          into the code. Andy's blood pressure dropped slightly.
 
 1.05_03 Sun Oct 31 20:54:33 CST 2004
 

@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.05_03
+Version 1.05_04
 
 =cut
 
-our $VERSION = "1.05_03";
+our $VERSION = "1.05_04";
 
 =head1 SYNOPSIS
 
@@ -277,7 +277,7 @@ sub agent_alias {
     }
 }
 
-=head2 C<known_agent_aliases()>
+=head2 known_agent_aliases()
 
 Returns a list of all the agent aliases that Mech knows about.
 
@@ -325,7 +325,7 @@ sub get {
 =head2 $mech->reload()
 
 Acts like the reload button in a browser: Reperforms the current
-request.
+request. The history (as per the L<back> method) is not altered.
 
 Returns the L<HTTP::Response> object from the reload, or C<undef>
 if there's no current request.
@@ -337,7 +337,8 @@ sub reload {
 
     return unless $self->{req};
 
-    return $self->request( $self->{req} );
+    local $self->{inhibit_page_stack} = 1;
+    return $self->request( $self->{req});
 }
 
 =head2 $mech->back()
@@ -353,7 +354,175 @@ sub back {
     $self->_pop_page_stack;
 }
 
-=head1 LINK-FOLLOWING METHODS
+=head1 STATUS METHODS
+
+=head2 $mech->success()
+
+Returns a boolean telling whether the last request was successful.
+If there hasn't been an operation yet, returns false.
+
+This is a convenience function that wraps C<< $mech->res->is_success >>.
+
+=cut
+
+sub success {
+    my $self = shift;
+
+    return $self->res && $self->res->is_success;
+}
+
+
+=head2 $mech->uri()
+
+Returns the current URI.
+
+=head2 $mech->response() / $mech->res()
+
+Return the current response as an L<HTTP::Response> object.
+
+Synonym for C<< $mech->response() >>
+
+=head2 $mech->status()
+
+Returns the HTTP status code of the response.
+
+=head2 $mech->ct()
+
+Returns the content type of the response.
+
+=head2 $mech->base()
+
+Returns the base URI for the current response
+
+=head2 $mech->forms()
+
+When called in a list context, returns a list of the forms found in
+the last fetched page. In a scalar context, returns a reference to
+an array with those forms. The forms returned are all L<HTML::Form>
+objects.
+
+=head2 $mech->current_form()
+
+Returns the current form as an L<HTML::Form> object.  I'd call this
+C<form()> except that C<L<form()>> already exists and sets the current_form.
+
+=head2 $mech->links()
+
+When called in a list context, returns a list of the links found in the
+last fetched page.  In a scalar context it returns a reference to an array
+with those links.  Each link is a L<WWW::Mechanize::Link> object.
+
+=head2 $mech->is_html()
+
+Returns true/false on whether our content is HTML, according to the
+HTTP headers.
+
+=cut
+
+sub uri {           my $self = shift; return $self->{uri}; }
+sub res {           my $self = shift; return $self->{res}; }
+sub response {      my $self = shift; return $self->{res}; }
+sub status {        my $self = shift; return $self->{status}; }
+sub ct {            my $self = shift; return $self->{ct}; }
+sub base {          my $self = shift; return $self->{base}; }
+sub current_form {  my $self = shift; return $self->{form}; }
+sub is_html {       my $self = shift; return defined $self->{ct} && ($self->{ct} eq "text/html"); }
+
+=head2 $mech->title()
+
+Returns the contents of the C<< <TITLE> >> tag, as parsed by
+L<HTML::HeadParser>.  Returns undef if the content is not HTML.
+
+=cut
+
+sub title {
+    my $self = shift;
+    return unless $self->is_html;
+
+    require HTML::HeadParser;
+    my $p = HTML::HeadParser->new;
+    $p->parse($self->content);
+    return $p->header('Title');
+}
+
+=head1 CONTENT-HANDLING METHODS
+
+=head2 $mech->content(...)
+
+Returns the content that the mech uses internally for the last page
+fetched. Ordinarily this is the same as $mech->response()->content(),
+but this may differ for HTML documents if L</update_html> is
+overloaded (in which case the value passed to the base-class
+implementation of same will be returned), and/or extra named arguments
+are passed to I<content()>:
+
+=over 2
+
+=item I<< $mech->content( format => "text" ) >>
+
+Returns a text-only version of the page, with all HTML markup
+stripped. This feature requires I<HTML::TreeBuilder> to be installed,
+or a fatal error will be thrown.
+
+=item I<< $mech->content( base_href => [$base_href|undef] ) >>
+
+Returns the HTML document, modified to contain a
+C<< <base href="$base_href"> >> mark-up in the header.
+I<$base_href> is C<< $mech->base() >> if not specified. This is
+handy to pass the HTML to e.g. L<HTML::Display>.
+
+=back
+
+Passing arguments to C<content()> if the current document is not
+HTML has no effect now (i.e. the return value is the same as
+C<< $self->response()->content() >>. This may change in the future,
+but will likely be backwards-compatible when it does.
+
+=cut
+
+sub content {
+    my $self = shift;
+    my $content = $self->{content};
+    return $content unless $self->is_html;
+
+    while ( my ($cmd, $arg) = splice(@_, 0, 2) ) {
+        if ($cmd eq 'format') {
+            if ($arg eq 'text') {
+                require HTML::TreeBuilder;
+                my $tree = HTML::TreeBuilder->new();
+                $tree->parse($content);
+                $tree->eof();
+                $tree->elementify(); # just for safety
+                $content = $tree->as_text();
+            } else {
+                $self->die( qq{Unknown format parameter "$arg"} );
+            };
+        } elsif ($cmd eq 'base_href') {
+            $arg ||= $self->base;
+            $content=~s/<head>/<head>\n<base href="$arg">/;
+        } else {
+            $self->die( qq{Unknown named argument "$cmd"} );
+        }
+    }
+
+    return $content;
+}
+
+=head1 LINK METHODS
+
+=head2 $mech->links
+
+Lists all the links on the current page.  Each link is a
+WWW::Mechanize::Link object. In list context, returns a list of all
+links.  In scalar context, returns an array reference of all links.
+
+=cut
+
+sub links {
+    my $self = shift ;
+    return @{$self->{links}} if wantarray;
+    return $self->{links};
+}
 
 =head2 $mech->follow_link(...)
 
@@ -409,7 +578,245 @@ sub follow_link {
     return $response;
 }
 
-=head1 FORM FIELD FILLING METHODS
+=head2 $mech->find_link()
+
+Finds a link in the currently fetched page. It returns a
+L<WWW::Mechanize::Link> object which describes the link.  (You'll
+probably be most interested in the C<url()> property.)  If it fails
+to find a link it returns undef.
+
+You can take the URL part and pass it to the C<get()> method.  If
+that's your plan, you might as well use the C<follow_link()> method
+directly, since it does the C<get()> for you automatically.
+
+Note that C<< <FRAME SRC="..."> >> tags are parsed out of the the HTML
+and treated as links so this method works with them.
+
+You can select which link to find by passing in one or more of these
+key/value pairs:
+
+=over 4
+
+=item * C<< text => string >> and C<< text_regex => regex >>
+
+C<text> matches the text of the link against I<string>, which must be an
+exact match.  To select a link with text that is exactly "download", use
+
+    $mech->find_link( text => "download" );
+
+C<text_regex> matches the text of the link against I<regex>.  To select a
+link with text that has "download" anywhere in it, regardless of case, use
+
+    $mech->find_link( text_regex => qr/download/i );
+
+Note that the text extracted from the page's links are trimmed.  For
+example, C<< <a> foo </a> >> is stored as 'foo', and searching for
+leading or trailing spaces will fail.
+
+=item * C<< url => string >> and C<< url_regex => regex >>
+
+Matches the URL of the link against I<string> or I<regex>, as appropriate.
+The URL may be a relative URL, like F<foo/bar.html>, depending on how
+it's coded on the page.
+
+=item * C<< url_abs => string >> and C<< url_abs_regex => regex >>
+
+Matches the absolute URL of the link against I<string> or I<regex>,
+as appropriate.  The URL will be an absolute URL, even if it's relative
+in the page.
+
+=item * C<< name => string >> and C<< name_regex => regex >>
+
+Matches the name of the link against I<string> or I<regex>, as appropriate.
+
+=item * C<< tag => string >> and C<< tag_regex => regex >>
+
+Matches the tag that the link came from against I<string> or I<regex>,
+as appropriate.  The C<tag_regex> is probably most useful to check for
+more than one tag, as in:
+
+    $mech->find_link( tag_regex => qr/^(a|frame)$/ );
+
+The tags and attributes looked at are defined below, at
+L<$mech->find_link() : link format>.
+
+=back
+
+If C<n> is not specified, it defaults to 1.  Therefore, if you don't
+specify any parms, this method defaults to finding the first link on the
+page.
+
+Note that you can specify multiple text or URL parameters, which
+will be ANDed together.  For example, to find the first link with
+text of "News" and with "cnn.com" in the URL, use:
+
+    $mech->find_link( text => "News", url_regex => qr/cnn\.com/ );
+
+The return value is a reference to an array containing a
+L<WWW::Mechanize::Link> object for every link in C<< $self->content >>.
+
+The links come from the following:
+
+=over 4
+
+=item C<< <A HREF=...> >>
+
+=item C<< <AREA HREF=...> >>
+
+=item C<< <FRAME SRC=...> >>
+
+=item C<< <IFRAME SRC=...> >>
+
+=item C<< <META CONTENT=...> >>
+
+=back
+
+=cut
+
+sub find_link {
+    my $self = shift;
+    my %parms = ( n=>1, @_ );
+
+    my $wantall = ( $parms{n} eq "all" );
+
+    for my $key ( keys %parms ) {
+        my $val = $parms{$key};
+        if ( $key !~ /^(n|(text|url|url_abs|name|tag)(_regex)?)$/ ) {
+            $self->warn( qq{Unknown link-finding parameter "$key"} );
+            delete $parms{$key};
+            next;
+        }
+
+        if ( ($key =~ /_regex$/) && (ref($val) ne "Regexp" ) ) {
+            $self->warn( qq{$val passed as $key is not a regex} );
+            delete $parms{$key};
+            next;
+        }
+
+        if ($key !~ /_regex$/) {
+            if (ref($val) eq "Regexp") {
+                $self->warn( qq{$val passed as '$key' is a regex} );
+                delete $parms{$key};
+                next;
+            }
+            if ($val =~ /^\s|\s$/) {
+                $self->warn( qq{'$val' is space-padded and cannot succeed} );
+                delete $parms{$key};
+                next;
+            }
+        }
+    } # for keys %parms
+
+    my @links = $self->links or return;
+
+    my $nmatches = 0;
+    my @matches;
+    for my $link ( @links ) {
+        if ( _match_any_parms($link,\%parms) ) {
+            if ( $wantall ) {
+                push( @matches, $link );
+            } else {
+                ++$nmatches;
+                return $link if $nmatches >= $parms{n};
+            }
+        }
+    } # for @links
+
+    if ( $wantall ) {
+        return @matches if wantarray;
+        return \@matches;
+    }
+
+    return;
+} # find_link
+
+# Used by find_links to check for matches
+# The logic is such that ALL parm criteria that are given must match
+sub _match_any_parms {
+    my $link = shift;
+    my $p = shift;
+
+    # No conditions, anything matches
+    return 1 unless keys %$p;
+
+    return if defined $p->{url}          and !($link->url eq $p->{url} );
+    return if defined $p->{url_regex}    and !($link->url =~ $p->{url_regex} );
+    return if defined $p->{url_abs}      and !($link->url_abs eq $p->{url_abs} );
+    return if defined $p->{url_abs_regex}and !($link->url_abs =~ $p->{url_abs_regex} );
+    return if defined $p->{text}         and !(defined($link->text) and $link->text eq $p->{text} );
+    return if defined $p->{text_regex}   and !(defined($link->text) and $link->text =~ $p->{text_regex} );
+    return if defined $p->{name}         and !(defined($link->name) and $link->name eq $p->{name} );
+    return if defined $p->{name_regex}   and !(defined($link->name) and $link->name =~ $p->{name_regex} );
+    return if defined $p->{tag}          and !($link->tag and $link->tag eq $p->{tag} );
+    return if defined $p->{tag_regex}    and !($link->tag and $link->tag =~ $p->{tag_regex} );
+
+    # Success: everything that was defined passed.
+    return 1;
+
+}
+
+
+=head2 $mech->find_all_links( ... )
+
+Returns all the links on the current page that match the criteria.  The
+method for specifying link criteria is the same as in C<L<find_link()>>.
+Each of the links returned is a L<WWW::Mechanize::Link> object.
+
+In list context, C<find_all_links()> returns a list of the links.
+Otherwise, it returns a reference to the list of links.
+
+C<find_all_links()> with no parameters returns all links in the
+page.
+
+=cut
+
+sub find_all_links {
+    my $self = shift;
+    return $self->find_link( @_, n=>'all' );
+}
+
+
+=head1 IMAGE METHODS
+
+=head2 $mech->images
+
+Lists all the images on the current page.  Each image is a
+WWW::Mechanize::Image object. In list context, returns a list of all
+images.  In scalar context, returns an array reference of all images.
+
+=cut
+
+sub images {
+    my $self = shift ;
+    return @{$self->{images}} if wantarray;
+    return $self->{images};
+}
+
+=head2 $mech->find_all_images( ... )
+
+=cut
+
+sub find_all_images {
+    my $self = shift;
+    return $self->find_image( @_, n=>'all' );
+}
+
+=head1 FORM METHODS
+
+=head2 $mech->forms
+
+Lists all the forms on the current page.  Each form is an HTML::Form
+object.  In list context, returns a list of all forms.  In scalar
+context, returns an array reference of all forms.
+
+=cut
+
+sub forms {
+    my $self = shift ;
+    return @{$self->{forms}} if wantarray;
+    return $self->{forms};
+}
+
 
 =head2 $mech->form_number($number)
 
@@ -650,31 +1057,29 @@ sub set_visible {
     my $form = $self->current_form;
     my @inputs = $form->inputs;
 
-	my $num_set = 0;
+    my $num_set = 0;
     for my $value ( @_ ) {
         if ( ref $value eq 'ARRAY' ) {
-           my ( $type, $value ) = @$value;
-           while ( my $input = shift @inputs ) {
-               next if $input->type eq 'hidden';
-               if ( $input->type eq $type ) {
-                   $input->value( $value );
-				   $num_set++;
-                   last;
-               }
-           } # while
+            my ( $type, $value ) = @$value;
+            while ( my $input = shift @inputs ) {
+                next if $input->type eq 'hidden';
+                if ( $input->type eq $type ) {
+                    $input->value( $value );
+                    $num_set++;
+                    last;
+                }
+            } # while
         } else {
-           while ( my $input = shift @inputs ) {
-               next if $input->type eq 'hidden';
-               $input->value( $value );
-			   $num_set++;
-			   # Does this 'last' do anything useful? -mls
-               last;
-           } # while
-       }
+            while ( my $input = shift @inputs ) {
+                next if $input->type eq 'hidden';
+                $input->value( $value );
+                $num_set++;
+                last;
+            } # while
+        }
     } # for
 
-	return $num_set; 
-
+    return $num_set;
 } # set_visible()
 
 =head2 $mech->tick( $name, $value [, $set] )
@@ -724,7 +1129,7 @@ sub untick {
     shift->tick(shift,shift,undef);
 }
 
-=head2 C<< $mech->value( $name, $number ) >>
+=head2 $mech->value( $name, $number )
 
 Given the name of a field, return its value. This applies to the current
 form (as set by the C<form()> method or defaulting to the first form on
@@ -751,8 +1156,6 @@ sub value {
         return $form->value( $name );
     }
 } # value
-
-=head1 FORM SUBMISSION METHODS
 
 =head2 $mech->click( $button [, $x, $y] )
 
@@ -938,375 +1341,6 @@ sub submit_form {
     return $response;
 }
 
-=head1 STATUS METHODS
-
-=head2 $mech->success()
-
-Returns a boolean telling whether the last request was successful.
-If there hasn't been an operation yet, returns false.
-
-This is a convenience function that wraps C<< $mech->res->is_success >>.
-
-=cut
-
-sub success {
-    my $self = shift;
-
-    return $self->res && $self->res->is_success;
-}
-
-
-=head2 $mech->uri()
-
-Returns the current URI.
-
-=head2 $mech->response() / $mech->res()
-
-Return the current response as an L<HTTP::Response> object.
-
-Synonym for C<< $mech->response() >>
-
-=head2 $mech->status()
-
-Returns the HTTP status code of the response.
-
-=head2 $mech->ct()
-
-Returns the content type of the response.
-
-=head2 $mech->base()
-
-Returns the base URI for the current response
-
-=head2 $mech->forms()
-
-When called in a list context, returns a list of the forms found in
-the last fetched page. In a scalar context, returns a reference to
-an array with those forms. The forms returned are all L<HTML::Form>
-objects.
-
-=head2 $mech->current_form()
-
-Returns the current form as an L<HTML::Form> object.  I'd call this
-C<form()> except that C<L<form()>> already exists and sets the current_form.
-
-=head2 $mech->links()
-
-When called in a list context, returns a list of the links found in the
-last fetched page.  In a scalar context it returns a reference to an array
-with those links.  Each link is a L<WWW::Mechanize::Link> object.
-
-=head2 $mech->is_html()
-
-Returns true/false on whether our content is HTML, according to the
-HTTP headers.
-
-=cut
-
-sub uri {           my $self = shift; return $self->{uri}; }
-sub res {           my $self = shift; return $self->{res}; }
-sub response {      my $self = shift; return $self->{res}; }
-sub status {        my $self = shift; return $self->{status}; }
-sub ct {            my $self = shift; return $self->{ct}; }
-sub base {          my $self = shift; return $self->{base}; }
-sub current_form {  my $self = shift; return $self->{form}; }
-sub is_html {       my $self = shift; return defined $self->{ct} && ($self->{ct} eq "text/html"); }
-
-sub links {
-    my $self = shift ;
-    return @{$self->{links}} if wantarray;
-    return $self->{links};
-}
-
-sub forms {
-    my $self = shift ;
-    return @{$self->{forms}} if wantarray;
-    return $self->{forms};
-}
-
-
-=head2 $mech->title()
-
-Returns the contents of the C<< <TITLE> >> tag, as parsed by
-L<HTML::HeadParser>.  Returns undef if the content is not HTML.
-
-=cut
-
-sub title {
-    my $self = shift;
-    return unless $self->is_html;
-
-    require HTML::HeadParser;
-    my $p = HTML::HeadParser->new;
-    $p->parse($self->content);
-    return $p->header('Title');
-}
-
-=head1 CONTENT-HANDLING METHODS
-
-=head2 $mech->content(...)
-
-Returns the content that the mech uses internally for the last page
-fetched. Ordinarily this is the same as $mech->response()->content(),
-but this may differ for HTML documents if L</update_html> is
-overloaded (in which case the value passed to the base-class
-implementation of same will be returned), and/or extra named arguments
-are passed to I<content()>:
-
-=over 2
-
-=item I<< $mech->content(format => "text") >>
-
-Returns a text-only version of the page, with all HTML markup
-stripped. This feature requires I<HTML::TreeBuilder> to be installed,
-or a fatal error will be thrown.
-
-=item I<< $mech->content(base_href => undef) >>
-
-=item I<< $mech->content(base_href => $base_href) >>
-
-Returns the HTML document, modified to contain a C<< <base
-href="$base_href"> >> mark-up in the header. $base_href is C<<
-$mech->base() >> if not specified. This is handy to pass the HTML to
-e.g. L<HTML::Display>.
-
-=back
-
-Passing arguments to content() if the current document is not HTML has
-no effect now (i.e. the return value is the same as
-$self->response()->content()). This may change in the future, but will 
-likely be backwards-compatible when it does. 
-
-=cut
-
-sub content {
-	my $self = shift;
-	my $content = $self->{content};
-	return $content unless $self->is_html;
-
-	while(my ($cmd, $arg) = splice(@_, 0, 2)) {
-		if ($cmd eq 'format') {
-			if ($arg eq 'text') {
-				require HTML::TreeBuilder;
-				my $tree = HTML::TreeBuilder->new();
-				$tree->parse($content);
-				$tree->eof();
-				$tree->elementify(); # just for safety
-				$content = $tree->as_text();
-			} else {
-				$self->die( qq{Unknown format parameter "$arg"} );
-			};
-		} elsif ($cmd eq 'base_href') {
-			$arg ||= $self->base;
-			$content=~s/<head>/<head>\n<base href="$arg">/;
-		} else {
-			$self->die( qq{Unknown named argument "$cmd"} );
-		}
-	}
-
-	return $content;
-}
-
-=head2 $mech->find_link()
-
-This method finds a link in the currently fetched page. It returns a
-L<WWW::Mechanize::Link> object which describes the link.  (You'll probably
-be most interested in the C<url()> property.)  If it fails to find a
-link it returns undef.
-
-You can take the URL part and pass it to the C<L<get()>> method.
-If that's your plan, you might as well use the C<L<follow_link()>>
-method directly, since it does the C<L<get()>> for you automatically.
-
-Note that C<< <FRAME SRC="..."> >> tags are parsed out of the the HTML
-and treated as links so this method works with them.
-
-You can select which link to find by passing in one or more of these
-key/value pairs:
-
-=over 4
-
-=item * C<< text => string >> and C<< text_regex => regex >>
-
-C<text> matches the text of the link against I<string>, which must be an
-exact match.  To select a link with text that is exactly "download", use
-
-    $mech->find_link( text => "download" );
-
-C<text_regex> matches the text of the link against I<regex>.  To select a
-link with text that has "download" anywhere in it, regardless of case, use
-
-    $mech->find_link( text_regex => qr/download/i );
-
-Note that the text extracted from the page's links are trimmed.  For
-example, C<< <a> foo </a> >> is stored as 'foo', and searching for
-leading or trailing spaces will fail.
-
-=item * C<< url => string >> and C<< url_regex => regex >>
-
-Matches the URL of the link against I<string> or I<regex>, as appropriate.
-The URL may be a relative URL, like F<foo/bar.html>, depending on how
-it's coded on the page.
-
-=item * C<< url_abs => string >> and C<< url_abs_regex => regex >>
-
-Matches the absolute URL of the link against I<string> or I<regex>,
-as appropriate.  The URL will be an absolute URL, even if it's relative
-in the page.
-
-=item * C<< name => string >> and C<< name_regex => regex >>
-
-Matches the name of the link against I<string> or I<regex>, as appropriate.
-
-=item * C<< tag => string >> and C<< tag_regex => regex >>
-
-Matches the tag that the link came from against I<string> or I<regex>,
-as appropriate.  The C<tag_regex> is probably most useful to check for
-more than one tag, as in:
-
-    $mech->find_link( tag_regex => qr/^(a|frame)$/ );
-
-The tags and attributes looked at are defined below, at
-L<$mech->find_link() : link format>.
-
-=back
-
-If C<n> is not specified, it defaults to 1.  Therefore, if you don't
-specify any parms, this method defaults to finding the first link on the
-page.
-
-Note that you can specify multiple text or URL parameters, which
-will be ANDed together.  For example, to find the first link with
-text of "News" and with "cnn.com" in the URL, use:
-
-    $mech->find_link( text => "News", url_regex => qr/cnn\.com/ );
-
-=head2 $mech->find_link() : link format
-
-The return value is a reference to an array containing
-a L<WWW::Mechanize::Link> object for every link in
-C<< $self->content >>.
-
-The links come from the following:
-
-=over 4
-
-=item C<< <A HREF=...> >>
-
-=item C<< <AREA HREF=...> >>
-
-=item C<< <FRAME SRC=...> >>
-
-=item C<< <IFRAME SRC=...> >>
-
-=item C<< <META CONTENT=...> >>
-
-=back
-
-=cut
-
-sub find_link {
-    my $self = shift;
-    my %parms = ( n=>1, @_ );
-
-    my $wantall = ( $parms{n} eq "all" );
-
-    for my $key ( keys %parms ) {
-        my $val = $parms{$key};
-        if ( $key !~ /^(n|(text|url|url_abs|name|tag)(_regex)?)$/ ) {
-            $self->warn( qq{Unknown link-finding parameter "$key"} );
-            delete $parms{$key};
-            next;
-        }
-
-        if ( ($key =~ /_regex$/) && (ref($val) ne "Regexp" ) ) {
-            $self->warn( qq{$val passed as $key is not a regex} );
-            delete $parms{$key};
-            next;
-        }
-
-        if ($key !~ /_regex$/) {
-            if (ref($val) eq "Regexp") {
-                $self->warn( qq{$val passed as '$key' is a regex} );
-                delete $parms{$key};
-                next;
-            }
-            if ($val =~ /^\s|\s$/) {
-                $self->warn( qq{'$val' is space-padded and cannot succeed} );
-                delete $parms{$key};
-                next;
-            }
-        }
-    } # for keys %parms
-
-    my @links = $self->links or return;
-
-    my $nmatches = 0;
-    my @matches;
-    for my $link ( @links ) {
-        if ( _match_any_parms($link,\%parms) ) {
-            if ( $wantall ) {
-                push( @matches, $link );
-            } else {
-                ++$nmatches;
-                return $link if $nmatches >= $parms{n};
-            }
-        }
-    } # for @links
-
-    if ( $wantall ) {
-        return @matches if wantarray;
-        return \@matches;
-    }
-
-    return;
-} # find_link
-
-# Used by find_links to check for matches
-# The logic is such that ALL parm criteria that are given must match
-sub _match_any_parms {
-	my ($link,$p_ref) = @_;
-
-	# No conditions, Anything matches
-	return 1 unless keys %$p_ref;
-
-	return undef if (defined $p_ref->{url}          and not ($link->[0] eq $p_ref->{url} )                                );
-    return undef if (defined $p_ref->{url_regex}    and not ($link->[0] =~ $p_ref->{url_regex} )                          );
-    return undef if (defined $p_ref->{url_abs}      and not ($link->url_abs eq $p_ref->{url_abs} )                        );
-    return undef if (defined $p_ref->{url_abs_regex}and not ($link->url_abs =~ $p_ref->{url_abs_regex} )                  );
-    return undef if (defined $p_ref->{text}         and not (defined($link->[1]) and $link->[1] eq $p_ref->{text} )       );
-    return undef if (defined $p_ref->{text_regex}   and not (defined($link->[1]) and $link->[1] =~ $p_ref->{text_regex} ) );
-    return undef if (defined $p_ref->{name}         and not (defined($link->[2]) and $link->[2] eq $p_ref->{name} )       );
-    return undef if (defined $p_ref->{name_regex}   and not (defined($link->[2]) and $link->[2] =~ $p_ref->{name_regex} ) );
-    return undef if (defined $p_ref->{tag}          and not ($link->[3] and $link->[3] eq $p_ref->{tag} )                 );
-    return undef if (defined $p_ref->{tag_regex}    and not ($link->[3] and $link->[3] =~ $p_ref->{tag_regex} )           );
-
-	# Success: everything that was defined passed. 
-	return 1;
-
-}
-
-
-=head2 $mech->find_all_links( ... )
-
-Returns all the links on the current page that match the criteria.  The
-method for specifying link criteria is the same as in C<L<find_link()>>.
-Each of the links returned is a L<WWW::Mechanize::Link> object.
-
-In list context, C<find_all_links()> returns a list of the links.
-Otherwise, it returns a reference to the list of links.
-
-C<find_all_links()> with no parameters returns all links in the
-page.
-
-=cut
-
-sub find_all_links {
-    my $self = shift;
-    return $self->find_link( @_, n=>'all' );
-}
-
-
 =head1 MISCELLANEOUS METHODS
 
 =head2 $mech->add_header( name => $value [, name => $value... ] )
@@ -1486,12 +1520,12 @@ sub request {
         }
     }
 
-	$self->_reset_page;
-	if ($self->is_html) {
-		$self->update_html($res->content);
-	} else {
-		$self->{content} = $res->content;
-	}
+    $self->_reset_page;
+    if ( $self->is_html ) {
+        $self->update_html( $res->content );
+    } else {
+        $self->{content} = $res->content;
+    }
 
     return $res;
 } # request
@@ -1518,8 +1552,8 @@ would overload I<update_html> in a subclass thusly:
 
    sub update_html {
        my ($self, $html) = @_;
-	   $html =~ s[</option>.?.?.?</td>][</option></select></td>]isg;
-	   $self->WWW::Mechanize::update_html( $html );
+       $html =~ s[</option>.?.?.?</td>][</option></select></td>]isg;
+       $self->WWW::Mechanize::update_html( $html );
    }
 
 If you do this, then the mech will use the tidied-up HTML instead of
@@ -1552,10 +1586,9 @@ sub update_html {
        }
     }
     $self->{form}  = $self->{forms}->[0];
-    $self->_extract_links();
+    $self->_extract_links_and_images();
 
-    $self->_parse_html(); #For compatibility with folks that used to
-	# overload that method.
+    $self->_parse_html(); #For compatibility with folks that used to overload that method.
 
     return;
 }
@@ -1705,16 +1738,14 @@ sub _reset_page {
     return;
 }
 
-=head2 $mech->_extract_links()
+=head2 $mech->_extract_links_and_images()
 
 Extracts links from the content of a webpage, and populates the C<{links}>
 property with L<WWW::Mechanize::Link> objects.
 
 =cut
 
-# NOTE: When this list is updated, also update the docs
-# for find_links() : link format mentions it as well
-my %urltags = (
+my %link_tags = (
     a => "href",
     area => "href",
     frame => "src",
@@ -1722,70 +1753,111 @@ my %urltags = (
     meta => "content",
 );
 
-sub _extract_links {
-    require WWW::Mechanize::Link;
+my %image_tags = (
+    img => "src",
+    input => "src",
+);
 
+sub _extract_links_and_images {
     my $self = shift;
 
-    my $p = HTML::TokeParser->new(\$self->{content});
+    my $parser = HTML::TokeParser->new(\$self->{content});
 
     $self->{links} = [];
+    $self->{images} = [];
 
-    while (my $token = $p->get_tag( keys %urltags )) {
+    while (my $token = $parser->get_tag( keys %link_tags, keys %image_tags )) {
         my $tag = $token->[0];
-        my $attrs = $token->[1];
-        my $url = $attrs->{$urltags{$tag}};
+        if ( $link_tags{ $tag } ) {
+            my $link = $self->_link_from_token( $token, $parser );
+            push( @{$self->{links}}, $link ) if $link;
+        } else {
+            my $image = $self->_image_from_token( $token, $parser );
+            push( @{$self->{images}}, $image ) if $image;
+        }
+    } # while
 
-        my $text;
-        my $name;
-        if ( $tag eq "a" ) {
-            $text = $p->get_trimmed_text("/$tag");
-            $text = "" unless defined $text;
+    return;
+}
 
-            my $onClick = $attrs->{onclick};
-            if ( $onClick && ($onClick =~ /^window\.open\(\s*'([^']+)'/) ) {
-                $url = $1;
-            }
-        } # a
+sub _image_from_token {
+    my $self = shift;
+    my $token = shift;
+    my $parser = shift;
 
-        # Of the tags we extract from, only 'AREA' has an alt tag
-        # The rest should have a 'name' attribute.
-		# ... but we don't do anything with that bit of wisdom now. 
+    my $tag = $token->[0];
+    my $attrs = $token->[1];
 
-        $name = $attrs->{name};
+    if ( $tag eq "input" ) {
+        my $type = $attrs->{type} or return;
+        return unless $type eq "submit";
+    }
 
-        if ( $tag eq "meta" ) {
-            my $equiv = $attrs->{"http-equiv"};
-            my $content = $attrs->{"content"};
-            next unless $equiv && (lc $equiv eq "refresh") && defined $content;
+    require WWW::Mechanize::Image;
+    return
+        WWW::Mechanize::Image->new({
+            tag     => $tag,
+            base    => $self->base,
+            url     => $attrs->{src},
+            name    => $attrs->{name},
+            height  => $attrs->{height},
+            width   => $attrs->{width},
+            alt     => $attrs->{alt},
+        });
+}
 
-            if ( $content =~ /^\d+\s*;\s*url\s*=\s*(.+)/ ) {
-                $url = $1;
-            } else {
-                undef $url;
-            }
-        } # meta
+sub _link_from_token {
+    my $self = shift;
+    my $token = shift;
+    my $parser = shift;
 
-        next unless defined $url;   # probably just a name link or <AREA NOHREF...>
-        push( @{$self->{links}}, WWW::Mechanize::Link->new({
+    my $tag = $token->[0];
+    my $attrs = $token->[1];
+    my $url = $attrs->{$link_tags{$tag}};
+
+    my $text;
+    my $name;
+    if ( $tag eq "a" ) {
+        $text = $parser->get_trimmed_text("/$tag");
+        $text = "" unless defined $text;
+
+        my $onClick = $attrs->{onclick};
+        if ( $onClick && ($onClick =~ /^window\.open\(\s*'([^']+)'/) ) {
+            $url = $1;
+        }
+    } # a
+
+    # Of the tags we extract from, only 'AREA' has an alt tag
+    # The rest should have a 'name' attribute.
+    # ... but we don't do anything with that bit of wisdom now.
+
+    $name = $attrs->{name};
+
+    if ( $tag eq "meta" ) {
+        my $equiv = $attrs->{"http-equiv"};
+        my $content = $attrs->{"content"};
+        return unless $equiv && (lc $equiv eq "refresh") && defined $content;
+
+        if ( $content =~ /^\d+\s*;\s*url\s*=\s*(\S+)/i ) {
+            $url = $1;
+        } else {
+            undef $url;
+        }
+    } # meta
+
+    return unless defined $url;   # probably just a name link or <AREA NOHREF...>
+
+    require WWW::Mechanize::Link;
+    return
+        WWW::Mechanize::Link->new({
             url  => $url,
             text => $text,
             name => $name,
             tag  => $tag,
             base => $self->base,
             attrs => $attrs,
-        }) );
-    } # while
-
-    # Old extract_links() returned a value.  Carp if someone expects
-    # this version to return something.
-    if ( defined wantarray ) {
-        my $func = (caller(0))[3];
-        $self->warn( "$func does not return a useful value" );
-    }
-
-    return;
-}
+        });
+} # _link_from_token
 
 =head2 $mech->_push_page_stack() / $mech->_pop_page_stack()
 
@@ -1803,12 +1875,20 @@ object.
 sub _push_page_stack {
     my $self = shift;
 
+    # Hook for reload() and maybe future code (e.g. 302 chasing,
+    # frames) that may want to fetch stuff without altering the history.
+    return 1 if $self->{inhibit_page_stack};
+
     # Don't push anything if it's a virgin object
     if ( $self->{res} ) {
         my $save_stack = $self->{page_stack};
         $self->{page_stack} = [];
 
-        push( @$save_stack, $self->clone );
+        my $clone = $self->clone;
+        # Huh, LWP::UserAgent->clone() ditches cookie_jar? Copy it over now.
+        $clone->{cookie_jar} = $self->cookie_jar;
+        push( @$save_stack, $clone );
+
         if ( $self->stack_depth > 0 ) {
             while ( @$save_stack > $self->stack_depth ) {
                 shift @$save_stack;
@@ -1822,6 +1902,10 @@ sub _push_page_stack {
 
 sub _pop_page_stack {
     my $self = shift;
+
+    # Hook for reload() and maybe future code (e.g. 302 chasing,
+    # frames) that may want to fetch stuff without altering the history.
+    return 1 if $self->{inhibit_page_stack};
 
     if (@{$self->{page_stack}}) {
         my $popped = pop @{$self->{page_stack}};
@@ -2002,18 +2086,11 @@ track things.
 L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=WWW-Mechanize> is the RT queue
 for Mechanize.  Please check to see if your bug has already been reported.
 
-=head1 AUTHOR
-
-Copyright 2004 Andy Lester <andy@petdance.com>
-
-Released under the Artistic License.  Based on Kirrily Robert's excellent
-L<WWW::Automate> package.
-
 =head1 ACKNOWLEDGEMENTS
 
 Thanks to the numerous people who have helped out on WWW::Mechanize in
 one way or another, including
-Kirrily Robert,
+Kirrily Robert for the orignal C<WWW::Automate>,
 Mike O'Regan,
 Mark Stosberg,
 Uri Guttman,
@@ -2039,6 +2116,12 @@ Dominique Quatravaux,
 Scott Lanning,
 Rob Casey,
 and the late great Iain Truskett.
+
+=head1 COPYRIGHT
+
+Copyright (c) 2004 Andy Lester. All rights reserved. This program is
+free software; you can redistribute it and/or modify it under the same
+terms as Perl itself.
 
 =cut
 
