@@ -28,7 +28,7 @@ isa_ok( $mech, "WWW::Mechanize" );
 ok(defined($mech->cookie_jar()),
    'this $mech starts with a cookie jar');
 
-isa_ok((my $server = LocalServer->spawn(html => <<'HTML')), "LocalServer");
+my $html = <<'HTML';
 <html>
 <head><title>%s</title></head>
 <body>Whatever.
@@ -43,6 +43,9 @@ isa_ok((my $server = LocalServer->spawn(html => <<'HTML')), "LocalServer");
 </body>
 </html>
 HTML
+
+my $server = LocalServer->spawn( html => $html );
+isa_ok( $server, "LocalServer" );
 
 $mech->get($server->url);
 ok( $mech->success, 'Fetched OK' );
@@ -123,6 +126,7 @@ my @links = qw(
 is( scalar @{$mech->{page_stack}}, 0, "Pre-404 check" );
 
 my $server404 = HTTP::Daemon->new or die;
+my $server404url = $server404->url;
 
 die "Cannot fork" if (! defined (my $pid404 = fork()));
 END {
@@ -140,7 +144,7 @@ if (! $pid404) { # Fake HTTP server code: a true 404-compliant server!
     }
 }
 
-$mech->get($server404->url);
+$mech->get($server404url);
 is( $mech->status, 404 , "404 check");
 
 is( scalar @{$mech->{page_stack}}, 1, "Even 404s get on the stack" );
