@@ -6,13 +6,13 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 0.66
+Version 0.69_01
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.82 2003/11/13 20:38:18 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.89 2003/11/26 05:15:37 petdance Exp $
 
 =cut
 
-our $VERSION = "0.66";
+our $VERSION = "0.69_01";
 
 =head1 SYNOPSIS
 
@@ -793,10 +793,9 @@ C<form()> except that C<L<form()>> already exists and sets the current_form.
 
 =head2 C<< $a->links() >>
 
-When called in a list context, returns a list of the links found in
-the last fetched page. In a scalar context it returns a reference to
-an array with those links. The links returned are all references to
-two element arrays which contain the URL and the text for each link.
+When called in a list context, returns a list of the links found in the
+last fetched page.  In a scalar context it returns a reference to an array
+with those links.  Each link is a L<WWW::Mechanize::Link> object.
 
 =head2 C<< $a->is_html() >>
 
@@ -878,6 +877,10 @@ link with text that has "download" anywhere in it, regardless of case, use
 
     $a->find_link( text_regex => qr/download/i );
 
+Note that the text extracted from the page's links are trimmed.  For
+example, C<< <a> foo </a> >> is stored as 'foo', and searching for
+leading or trailing spaces will fail.
+
 =item * C<< url => string >> and C<< url_regex => regex >>
 
 Matches the URL of the link against I<string> or I<regex>, as appropriate.
@@ -956,6 +959,19 @@ sub find_link {
             delete $parms{$key};
             next;
         }
+
+	if ($key !~ /_regex$/) {
+	    if (ref($val) eq "Regexp") {
+		$self->warn( qq{$val passed as '$key' is a regex} );
+		delete $parms{$key};
+		next;
+	    }
+	    if ($val =~ /^\s|\s$/) {
+		$self->warn( qq{'$val' is space-padded and cannot succeed} );
+		delete $parms{$key};
+		next;
+	    }
+	}
     } # for keys %parms
 
     my @links = $self->links or return;
@@ -972,8 +988,8 @@ sub find_link {
 
     my $matchfunc;
     if ( @conditions ) {
-        local $" = " && ";
-        $matchfunc = eval "sub { @conditions }";
+        local $" = ") && (";
+        $matchfunc = eval "sub { return 1 if (@conditions); return; }";
     } else {
         $matchfunc = sub{1};
     }
@@ -1064,30 +1080,20 @@ An overloaded version of C<redirect_ok()> in L<LWP::UserAgent>.
 This method is used to determine whether a redirection in the request
 should be followed.
 
-It's also used to keep track of the last URI redirected to. Also
-if the redirection was from a POST, it changes the HTTP method
-to GET. This does not conform with the RFCs, but it is how many
-browser user agent implementations behave. As we are trying to model
-them, we must unfortunately mimic their erroneous reaction. See
-L<http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.3> for
-details on correct behaviour.
-
 =cut
 
 sub redirect_ok {
     my $self = shift;
     my $prospective_request = shift;
+    my $response = shift;
 
-    my $ok = $self->SUPER::redirect_ok( $prospective_request );
+    my $ok = $self->SUPER::redirect_ok( $prospective_request, $response );
     if ( $ok ) {
         $self->{redirected_uri} = $prospective_request->uri;
-
-        # Mimic erroneous browser behaviour by changing the method.
-        $prospective_request->method("GET") if $prospective_request->method eq "POST";
     }
 
     return $ok;
-};
+}
 
 
 =head2 C<< $a->request( $request [, $arg [, $size]]) >>
