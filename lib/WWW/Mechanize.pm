@@ -6,13 +6,13 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.03_02
+Version 1.04
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.133 2004/08/17 04:03:19 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.138 2004/09/16 04:20:07 petdance Exp $
 
 =cut
 
-our $VERSION = "1.03_02";
+our $VERSION = "1.04";
 
 =head1 SYNOPSIS
 
@@ -167,6 +167,12 @@ installed, or C<CORE::die> if not.
 Don't complain on warnings.  Setting C<< quiet => 1 >> is the same as
 calling C<< $agent->quiet(1) >>.  Default is off.
 
+=item * C<< stack_depth => $value >>
+
+Sets the depth of the page stack that keeps tracks of all the downloaded
+pages. Default is 0 (infinite). If the stack is eating up your memory,
+then set it to 1.
+
 =back
 
 =cut
@@ -184,6 +190,7 @@ sub new {
         onwarn      => \&WWW::Mechanize::_warn,
         onerror     => \&WWW::Mechanize::_die,
         quiet       => 0,
+        stack_depth => 0,
         headers     => {},
     );
 
@@ -207,6 +214,10 @@ sub new {
     }
     $self->{page_stack} = [];
     $self->env_proxy();
+
+    # libwww-perl 5.800 (and before, I assume) has a problem where
+    # $ua->{proxy} can be undef and clone() doesn't handle it.
+    $self->{proxy} = {} unless defined $self->{proxy};
     push( @{$self->requests_redirectable}, 'POST' );
 
     $self->_reset_page;
@@ -280,10 +291,11 @@ sub known_agent_aliases {
 
 =head1 Page-fetching methods
 
-=head2 $mech->get($url)
+=head2 $mech->get( $url )
 
 Given a URL/URI, fetches it.  Returns an L<HTTP::Response> object.
-I<$url> can be a well-formed URL string, or a L<URI> object.
+I<$url> can be a well-formed URL string, a L<URI> object, or a
+L<WWW::Mechanize::Link> object.
 
 The results are stored internally in the agent object, but you don't
 know that.  Just use the accessors listed below.  Poking at the internals
@@ -302,6 +314,8 @@ appropriately.
 sub get {
     my $self = shift;
     my $uri = shift;
+
+    $uri = $uri->url if ref($uri) eq 'WWW::Mechanize::Link';
 
     $uri = $self->base
             ? URI->new_abs( $uri, $self->base )
@@ -1249,6 +1263,20 @@ sub quiet {
     return $self->{quiet};
 }
 
+=head2 $mech->stack_depth($value)
+
+Get or set the page stack depth. Older pages are discarded first.
+
+A value of 0 means "keep all the pages".
+
+=cut
+
+sub stack_depth {
+    my $self = shift;
+    $self->{stack_depth} = shift if @_;
+    return $self->{stack_depth};
+}
+
 =head1 Overridden L<LWP::UserAgent> methods
 
 =head2 $mech->redirect_ok()
@@ -1380,7 +1408,11 @@ sub _modify_request {
         $req->header( 'Accept-Encoding', 'identity' );
     }
 
-    $req->header( Referer => $self->{last_uri} ) if $self->{last_uri};
+    my $last = $self->{last_uri};
+    if ( $last ) {
+        $last = $last->as_string if ref($last);
+        $req->header( Referer => $last );
+    }
     while ( my($key,$value) = each %{$self->{headers}} ) {
         if ( defined $value ) {
             $req->header( $key => $value );
@@ -1583,7 +1615,11 @@ sub _push_page_stack {
         $self->{page_stack} = [];
 
         push( @$save_stack, $self->clone );
-
+        if ( $self->stack_depth > 0 ) {
+            while ( @$save_stack > $self->stack_depth ) {
+                shift @$save_stack;
+            }
+        } # if stack_depth > 0
         $self->{page_stack} = $save_stack;
     }
 
@@ -1736,9 +1772,13 @@ Here are modules that use or subclass Mechanize.  Let me know of any others:
 
 =over 4
 
+=item * L<Finance::Bank::LloydsTSB>
+
 =item * L<WWW::Bugzilla>
 
 =item * L<WWW::Google::Groups>
+
+=item * L<WWW::Hotmail>
 
 =item * L<WWW::Mechanize::Cached>
 
@@ -1755,6 +1795,7 @@ Here are modules that use or subclass Mechanize.  Let me know of any others:
 =item * L<WWW::SourceForge>
 
 =item * L<WWW::Yahoo::Groups>
+
 
 =back
 
