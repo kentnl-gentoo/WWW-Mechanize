@@ -6,13 +6,13 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.03
+Version 1.03_02
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.131 2004/05/27 20:13:37 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.133 2004/08/17 04:03:19 petdance Exp $
 
 =cut
 
-our $VERSION = "1.03_01";
+our $VERSION = "1.03_02";
 
 =head1 SYNOPSIS
 
@@ -1024,7 +1024,7 @@ Matches the tag that the link came from against I<string> or I<regex>,
 as appropriate.  The C<tag_regex> is probably most useful to check for
 more than one tag, as in:
 
-    $mech->find_link( tag_regex => qr/^(a|img)$/;
+    $mech->find_link( tag_regex => qr/^(a|frame)$/ );
 
 =item * C<< n => number >>
 
