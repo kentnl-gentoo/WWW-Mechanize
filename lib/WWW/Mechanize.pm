@@ -6,13 +6,13 @@ WWW::Mechanize - automate interaction with websites
 
 =head1 VERSION
 
-Version 0.52
+Version 0.53
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.22 2003/07/08 22:42:35 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.24 2003/07/17 14:57:42 petdance Exp $
 
 =cut
 
-our $VERSION = "0.52";
+our $VERSION = "0.53";
 
 =head1 SYNOPSIS
 
@@ -104,9 +104,9 @@ use strict;
 use warnings;
 
 use Carp qw(carp);
-use HTTP::Request;
-use LWP::UserAgent;
-use HTML::Form;
+use HTTP::Request 1.30;
+use LWP::UserAgent 2.003;
+use HTML::Form 1.00;
 use HTML::TokeParser;
 use URI::URL;
 
