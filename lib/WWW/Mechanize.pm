@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.06
+Version 1.08
 
 =cut
 
-our $VERSION = "1.06";
+our $VERSION = "1.08";
 
 =head1 SYNOPSIS
 
@@ -33,8 +33,8 @@ a history of the URLs you've visited, which can be queried and revisited.
     $mech->submit_form(
         form_number => 3,
         fields      => {
-            username    => 'yourname',
-            password    => 'dummy',
+            username    => 'mungo',
+            password    => 'lost-and-alone',
         }
     );
 
@@ -679,40 +679,14 @@ sub find_link {
 
     my $wantall = ( $parms{n} eq "all" );
 
-    for my $key ( keys %parms ) {
-        my $val = $parms{$key};
-        if ( $key !~ /^(n|(text|url|url_abs|name|tag)(_regex)?)$/ ) {
-            $self->warn( qq{Unknown link-finding parameter "$key"} );
-            delete $parms{$key};
-            next;
-        }
-
-        if ( ($key =~ /_regex$/) && (ref($val) ne "Regexp" ) ) {
-            $self->warn( qq{$val passed as $key is not a regex} );
-            delete $parms{$key};
-            next;
-        }
-
-        if ($key !~ /_regex$/) {
-            if (ref($val) eq "Regexp") {
-                $self->warn( qq{$val passed as '$key' is a regex} );
-                delete $parms{$key};
-                next;
-            }
-            if ($val =~ /^\s|\s$/) {
-                $self->warn( qq{'$val' is space-padded and cannot succeed} );
-                delete $parms{$key};
-                next;
-            }
-        }
-    } # for keys %parms
+    $self->_clean_keys( \%parms, qr/^(n|(text|url|url_abs|name|tag)(_regex)?)$/ );
 
     my @links = $self->links or return;
 
     my $nmatches = 0;
     my @matches;
     for my $link ( @links ) {
-        if ( _match_any_parms($link,\%parms) ) {
+        if ( _match_any_link_parms($link,\%parms) ) {
             if ( $wantall ) {
                 push( @matches, $link );
             } else {
@@ -732,28 +706,66 @@ sub find_link {
 
 # Used by find_links to check for matches
 # The logic is such that ALL parm criteria that are given must match
-sub _match_any_parms {
+sub _match_any_link_parms {
     my $link = shift;
     my $p = shift;
 
     # No conditions, anything matches
     return 1 unless keys %$p;
 
-    return if defined $p->{url}          and !($link->url eq $p->{url} );
-    return if defined $p->{url_regex}    and !($link->url =~ $p->{url_regex} );
-    return if defined $p->{url_abs}      and !($link->url_abs eq $p->{url_abs} );
-    return if defined $p->{url_abs_regex}and !($link->url_abs =~ $p->{url_abs_regex} );
-    return if defined $p->{text}         and !(defined($link->text) and $link->text eq $p->{text} );
-    return if defined $p->{text_regex}   and !(defined($link->text) and $link->text =~ $p->{text_regex} );
-    return if defined $p->{name}         and !(defined($link->name) and $link->name eq $p->{name} );
-    return if defined $p->{name_regex}   and !(defined($link->name) and $link->name =~ $p->{name_regex} );
-    return if defined $p->{tag}          and !($link->tag and $link->tag eq $p->{tag} );
-    return if defined $p->{tag_regex}    and !($link->tag and $link->tag =~ $p->{tag_regex} );
+    return if defined $p->{url}           and !($link->url eq $p->{url} );
+    return if defined $p->{url_regex}     and !($link->url =~ $p->{url_regex} );
+    return if defined $p->{url_abs}       and !($link->url_abs eq $p->{url_abs} );
+    return if defined $p->{url_abs_regex} and !($link->url_abs =~ $p->{url_abs_regex} );
+    return if defined $p->{text}          and !(defined($link->text) and $link->text eq $p->{text} );
+    return if defined $p->{text_regex}    and !(defined($link->text) and $link->text =~ $p->{text_regex} );
+    return if defined $p->{name}          and !(defined($link->name) and $link->name eq $p->{name} );
+    return if defined $p->{name_regex}    and !(defined($link->name) and $link->name =~ $p->{name_regex} );
+    return if defined $p->{tag}           and !($link->tag and $link->tag eq $p->{tag} );
+    return if defined $p->{tag_regex}     and !($link->tag and $link->tag =~ $p->{tag_regex} );
 
     # Success: everything that was defined passed.
     return 1;
 
 }
+
+# Cleans the %parms parameter for the find_link and find_image methods.
+sub _clean_keys {
+    my $self = shift;
+    my $parms = shift;
+    my $rx_keyname = shift;
+
+    for my $key ( keys %$parms ) {
+        my $val = $parms->{$key};
+        if ( $key !~ qr/$rx_keyname/ ) {
+            $self->warn( qq{Unknown link-finding parameter "$key"} );
+            delete $parms->{$key};
+            next;
+        }
+
+        my $key_regex = ( $key =~ /_regex$/ );
+        my $val_regex = ( ref($val) eq "Regexp" );
+
+        if ( $key_regex ) {
+            if ( !$val_regex ) {
+                $self->warn( qq{$val passed as $key is not a regex} );
+                delete $parms->{$key};
+                next;
+            }
+        } else {
+            if ( $val_regex ) {
+                $self->warn( qq{$val passed as '$key' is a regex} );
+                delete $parms->{$key};
+                next;
+            }
+            if ( $val =~ /^\s|\s$/ ) {
+                $self->warn( qq{'$val' is space-padded and cannot succeed} );
+                delete $parms->{$key};
+                next;
+            }
+        }
+    } # for keys %parms
+} # _clean_keys()
 
 
 =head2 $mech->find_all_links( ... )
@@ -791,8 +803,6 @@ sub images {
     return @{$self->{images}} if wantarray;
     return $self->{images};
 }
-
-=for future-development
 
 =head2 $mech->find_image()
 
@@ -838,7 +848,7 @@ more than one tag, as in:
 
     $mech->find_image( tag_regex => qr/^(img|input)$/ );
 
-The tags supported are <img> and <input> . 
+The tags supported are C<< <img> >> and C<< <input> >>.
 
 =back
 
@@ -857,23 +867,79 @@ L<WWW::Mechanize::Image> object for every image in C<< $self->content >>.
 
 =cut
 
-=for future-development
-
 sub find_image {
-    my $self = shift; 
-    # Write me.
+    my $self = shift;
+    my %parms = ( n=>1, @_ );
+
+    my $wantall = ( $parms{n} eq "all" );
+
+    $self->_clean_keys( \%parms, qr/^(n|(alt|url|url_abs|tag)(_regex)?)$/ );
+
+    my @images = $self->images or return;
+
+    my $nmatches = 0;
+    my @matches;
+    for my $image ( @images ) {
+        if ( _match_any_image_parms($image,\%parms) ) {
+            if ( $wantall ) {
+                push( @matches, $image );
+            } else {
+                ++$nmatches;
+                return $image if $nmatches >= $parms{n};
+            }
+        }
+    } # for @images
+
+    if ( $wantall ) {
+        return @matches if wantarray;
+        return \@matches;
+    }
+
+    return;
 }
+
+# Used by find_images to check for matches
+# The logic is such that ALL parm criteria that are given must match
+sub _match_any_image_parms {
+    my $image = shift;
+    my $p = shift;
+
+    # No conditions, anything matches
+    return 1 unless keys %$p;
+
+    return if defined $p->{url}           and !($image->url eq $p->{url} );
+    return if defined $p->{url_regex}     and !($image->url =~ $p->{url_regex} );
+    return if defined $p->{url_abs}       and !($image->url_abs eq $p->{url_abs} );
+    return if defined $p->{url_abs_regex} and !($image->url_abs =~ $p->{url_abs_regex} );
+    return if defined $p->{alt}           and !(defined($image->alt) and $image->alt eq $p->{alt} );
+    return if defined $p->{alt_regex}     and !(defined($image->alt) and $image->alt =~ $p->{alt_regex} );
+    return if defined $p->{tag}           and !($image->tag and $image->tag eq $p->{tag} );
+    return if defined $p->{tag_regex}     and !($image->tag and $image->tag =~ $p->{tag_regex} );
+
+    # Success: everything that was defined passed.
+    return 1;
+}
+
 
 =head2 $mech->find_all_images( ... )
 
-xcut
+Returns all the images on the current page that match the criteria.  The
+method for specifying image criteria is the same as in C<L<find_image()>>.
+Each of the images returned is a L<WWW::Mechanize::Image> object.
+
+In list context, C<find_all_images()> returns a list of the images.
+Otherwise, it returns a reference to the list of images.
+
+C<find_all_images()> with no parameters returns all images in the
+page.
+
+
+=cut
 
 sub find_all_images {
     my $self = shift;
     return $self->find_image( @_, n=>'all' );
 }
-
-=cut
 
 =head1 FORM METHODS
 
@@ -994,10 +1060,12 @@ sub select {
 
     my $input = $form->find_input($name);
     if (!$input) {
-        $self->warn( qq{ Input "$name" not found } );
+        $self->warn( qq{Input "$name" not found} );
         return;
-    } elsif ($input->type ne 'option') {
-        $self->warn( qq{ Input "$name" is not type "select" } );
+    }
+
+    if ($input->type ne 'option') {
+        $self->warn( qq{Input "$name" is not type "select"} );
         return;
     }
 
@@ -1048,10 +1116,10 @@ sub select {
     if (ref($value) eq "ARRAY") {
         $form->param($name, $value);
         return 1;
-    } else {
-        $form->value($name => $value);
-        return 1;
     }
+
+    $form->value($name => $value);
+    return 1;
 }
 
 =head2 $mech->set_fields( $name => $value ... )
@@ -1528,7 +1596,7 @@ sub save_content {
     close $fh;
 }
 
-=head1 OVERRIDDEN L<LWP::UserAgent> METHODS
+=head1 OVERRIDDEN LWP::UserAgent METHODS
 
 =head2 $mech->redirect_ok()
 
@@ -1574,7 +1642,7 @@ sub request {
         $self->_push_page_stack();
     }
 
-	$self->_update_page($request, $self->_make_request( $request, @_ ));
+    $self->_update_page($request, $self->_make_request( $request, @_ ));
 }
 
 =head2 $mech->update_html( $html )
@@ -1586,7 +1654,7 @@ Say you have a page that you know has malformed output, and you want to
 update it so the links come out correctly:
 
     my $html = $mech->content;
-    $html =~ s[</option>.?.?.?</td>][</option></select></td>]isg;
+    $html =~ s[</option>.{0,3}</td>][</option></select></td>]isg;
     $mech->update_html( $html );
 
 This method is also used internally by the mech itself to update its
@@ -1599,7 +1667,7 @@ would overload I<update_html> in a subclass thusly:
 
    sub update_html {
        my ($self, $html) = @_;
-       $html =~ s[</option>.?.?.?</td>][</option></select></td>]isg;
+       $html =~ s[</option>.{0,3}</td>][</option></select></td>]isg;
        $self->WWW::Mechanize::update_html( $html );
    }
 
@@ -1622,15 +1690,13 @@ sub update_html {
     $self->{ct} = 'text/html';
     $self->{content} = $html;
 
-   $self->{forms} = [ HTML::Form->parse($html, $self->base) ];
-    if (@{ $self->{forms} }) {
-        for my $form (@{ $self->{forms} }) {
-            for my $input ($form->inputs) {
-                 if ($input->type eq 'file') {
-                     $input->value( undef );
-                 }
-            }
-       }
+    $self->{forms} = [ HTML::Form->parse($html, $self->base) ];
+    for my $form (@{ $self->{forms} }) {
+        for my $input ($form->inputs) {
+             if ($input->type eq 'file') {
+                 $input->value( undef );
+             }
+        }
     }
     $self->{form}  = $self->{forms}->[0];
     $self->_extract_links_and_images();
@@ -2026,7 +2092,7 @@ sub warn {
 =head2 die( @messages )
 
 Centralized error method.  Defaults to calling C<CORE::die>, but
-may be overridden by setting C<onerror> in the construcotr.
+may be overridden by setting C<onerror> in the constructor.
 
 =cut
 
@@ -2050,6 +2116,12 @@ sub _die {
     require Carp;
     &Carp::croak; # pass thru
 }
+
+=head1 WWW::MECHANIZE'S SUBVERSION REPOSITORY
+
+Mech is hosted by the kind generosity of Ask and Robert,
+maintainers of perl.org.  The Subversion repository is at
+L<http://svn.perl.org/modules/www-mechanize>.
 
 =head1 OTHER DOCUMENTATION
 
@@ -2080,7 +2152,7 @@ There are six hacks that use Mech or a Mech derivative:
 The book was also positively reviewed on Slashdot:
 L<http://books.slashdot.org/article.pl?sid=03/12/11/2126256>
 
-=head2 Online resources
+=head1 ONLINE RESOURCES
 
 =over 4
 
