@@ -1,7 +1,25 @@
-# $Id: Changes,v 1.77 2003/10/24 04:48:34 petdance Exp $
+# $Id: Changes,v 1.80 2003/11/10 06:13:36 petdance Exp $
 Revision history for Perl extension WWW::Mechanize
 
+0.65	Mon Nov 10 00:11:06 CST 2003
+	[ENHANCEMENTS]
+	* Made a _parse_html() method that you can override or call
+	  manually, per request from Gavin Estey.
+
+	[FIXES]
+	* Made some path naming use File::Spec->catfile so that
+	  they work correctly under Windows.
+	* "make clean" cleans up temp flag files.
+
+	[INTERNALS]
+	* Uses the new Test::Pod 1.00 for simplicity.
+
+
 0.64	October 23, 2003  11:15pm
+	[ENHANCEMENTS]
+	* Many new tests, based on the excellent coverage reporting
+	  created by Paul Johnson's Devel::Cover module.
+
 	* The start of JavaScript support, sort of! 
 	
 	  If you have an <A> tag that does an onClick that opens a
@@ -19,10 +37,6 @@ Revision history for Perl extension WWW::Mechanize
 
 	[FIXES]
 	* Fixed the t/mech-dump.t failure.
-
-	[ENHANCEMENTS]
-	* Many new tests, based on the excellent coverage reporting
-	  created by Paul Johnson's Devel::Cover module.
 
 0.63	October 13, 2003  2:56pm
 	[ENHANCEMENTS]

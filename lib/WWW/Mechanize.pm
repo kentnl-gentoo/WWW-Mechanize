@@ -6,13 +6,13 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 0.64
+Version 0.65
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.78 2003/10/24 04:48:34 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.80 2003/11/10 06:14:26 petdance Exp $
 
 =cut
 
-our $VERSION = "0.64";
+our $VERSION = "0.65";
 
 =head1 SYNOPSIS
 
@@ -1108,14 +1108,26 @@ sub request {
     }
 
     $self->_reset_page();
-    if ( $self->is_html ) {
-        $self->{forms} = [ HTML::Form->parse($self->content, $self->base) ];
-        $self->{form}  = $self->{forms}->[0];
-        $self->_extract_links();
-    }
+    $self->_parse_html if $self->is_html;
 
     return $res;
+} # request
+
+=head2 C<< $a->_parse_html() >>
+
+An internal method that initializes forms and links given a HTML document.
+If you need to override this in your subclass, or call it multiple times,
+go ahead.
+
+=cut
+
+sub _parse_html {
+    my $self = shift;
+    $self->{forms} = [ HTML::Form->parse($self->content, $self->base) ];
+    $self->{form}  = $self->{forms}->[0];
+    $self->_extract_links();
 }
+
 
 =head2 C<_make_request()>
 
