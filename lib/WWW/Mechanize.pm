@@ -6,13 +6,13 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 0.69_01
+Version 0.70
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.89 2003/11/26 05:15:37 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.92 2003/12/01 05:46:55 petdance Exp $
 
 =cut
 
-our $VERSION = "0.69_01";
+our $VERSION = "0.70";
 
 =head1 SYNOPSIS
 
@@ -1388,23 +1388,15 @@ sub die {
 
 # NOT an object method!
 sub _warn {
-    eval "require Carp";
-    if ( $@ ) {
-        CORE::warn @_;
-    } else {
-        &Carp::carp; # pass thru
-    }
+    require Carp;
+    &Carp::carp; # pass thru
     return;
 }
 
 # NOT an object method!
 sub _die {
-    eval "require Carp";
-    if ( $@ ) {
-        CORE::die @_;
-    } else {
-        &Carp::croak; # pass thru
-    }
+    require Carp;
+    &Carp::croak; # pass thru
     return;
 }
 
