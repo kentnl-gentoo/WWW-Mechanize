@@ -6,13 +6,13 @@ WWW::Mechanize - automate interaction with websites
 
 =head1 VERSION
 
-Version 0.46
+Version 0.47
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.7 2003/06/20 16:08:55 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.10 2003/06/22 03:49:38 petdance Exp $
 
 =cut
 
-our $VERSION = "0.46";
+our $VERSION = "0.47";
 
 =head1 SYNOPSIS
 
@@ -252,9 +252,15 @@ not be used in future development.
 
 sub follow_link {
     my $self = shift;
+    my %parms = ( n=>1, @_ );
+
+    if ( $parms{n} eq "all" ) {
+	delete $parms{n};
+	warn qq{follow_link(n=>"all") is not valid\n};
+    }
 
     my $response;
-    my $link_ref = $self->find_link(@_);
+    my $link_ref = $self->find_link(%parms);
     if ( $link_ref ) {
 	my $link = $link_ref->[0];     # we just want the URL, not the text
 	$self->_push_page_stack();
@@ -706,7 +712,7 @@ sub title {
     return $p->header('Title');
 }
 
-=head2 Content-handling methods
+=head1 Content-handling methods
 
 =head2 C<< $a->extract_links() >>
 
@@ -805,14 +811,16 @@ exact match.  This is similar to the C<text> parm.
 Matches the URL of the link against I<regex>.  This is similar to
 the C<text_regex> parm.
 
-=item * n => number
+=item * n => I<number or "all">
 
-Matches against the I<n>th link.  
+Matches against the I<n>th link.  If I<n> is the string "all", then
+all links matching the criteria are returned.
 
 The C<n> parms can be combined with the C<text*> or C<url*> parms
 as a numeric modifier.  For example, 
 C<< text => "download", n => 3 >> finds the 3rd link which has the
-exact text "download".
+exact text "download", and
+C<< text => "download", n => "all" >> finds all download links.
 
 =back
 
@@ -830,8 +838,17 @@ sub find_link {
 
     return unless @links ;
 
+    my @matches;
     my $match;
     my $arg;
+    my $wantall = ( $parms{n} eq "all" );
+
+    if ( !$self->quiet ) {
+	for ( keys %parms ) {
+	    warn qq{Unknown link-finding parameter "$_"\n}
+		unless /^(n|(text|url)(_regex)?)$/;
+	}
+    }
 
     if ( defined ($arg = $parms{url}) ) {
 	$match = sub { $_[0]->[0] eq $arg };
@@ -852,11 +869,12 @@ sub find_link {
     my $nmatches = 0;
     for my $link ( @links ) {
 	if ( $match->($link) ) {
-	    $nmatches++;
-	    return $link if $nmatches >= $parms{n};
+	    push( @matches, $link );
+	    return $link if !$wantall && (scalar @matches >= $parms{n});
 	}
     } # for @links
 
+    return @matches if $wantall;
     return;
 } # find_link
 
@@ -950,6 +968,20 @@ sub _pop_page_stack {
 }
 
 
+=head2 C<< redirect_ok() >>
+
+Keep track of the last uri redirected to, and tell our parent that it's
+OK to do the redirect.
+
+=cut
+
+sub redirect_ok {
+    $_[0]->{redirected_uri} = $_[1]->uri;
+
+    return 1;
+};
+
+
 =head2 C<< $a->request( $request [, $arg [, $size]]) >>
 
 Overloaded version of C<request()> in L<LWP::UserAgent>.  Performs
@@ -962,6 +994,7 @@ Returns an L<HTTP::Response> object.
 
 =cut
 
+
 sub request {
     my $self = shift;
     my $request = shift;
@@ -971,6 +1004,7 @@ sub request {
         $request->header( $key => $value );
     }
     $self->{req} = $request;
+    $self->{redirected_uri} = $request->uri;
     $self->{res} = $self->SUPER::request( $request, @_ );
 
     # These internal hash elements should be dropped in favor of
@@ -980,8 +1014,8 @@ sub request {
     $self->{ct}      = $self->{res}->content_type || "";
     $self->{content} = $self->{res}->content;
     if ( $self->{res}->is_success ) {
+	$self->{uri} = $self->{redirected_uri};
 	$self->{last_uri} = $self->{uri};
-	$self->{uri} = $request->uri;
     }
 
     if ( $self->is_html ) {
