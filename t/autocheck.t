@@ -10,6 +10,7 @@ BEGIN {
     plan tests => 5;
 }
 
+BEGIN { delete @ENV{ qw( http_proxy HTTP_PROXY ) }; }
 BEGIN {
     use_ok( 'WWW::Mechanize' );
 }
@@ -27,6 +28,6 @@ AUTOCHECK_ON: {
     isa_ok( $mech, 'WWW::Mechanize' );
 
     dies_ok {
-	$mech->get( NONEXISTENT );
+        $mech->get( NONEXISTENT );
     } "Mech would die 4 u";
 }
