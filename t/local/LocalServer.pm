@@ -1,7 +1,8 @@
-package Test::HTTP::LocalServer;
+package LocalServer;
 
 # start a fake webserver, fork, and connect to ourselves
 use strict;
+use Test::More;
 use LWP::Simple;
 use FindBin;
 use File::Spec;
@@ -66,9 +67,9 @@ sub spawn {
     $web_page = "";
   };
 
-  my $server_file = File::Spec->catfile( $FindBin::Bin,'lib','Test','HTTP','log-server' );
+  my $server_file = File::Spec->catfile( $FindBin::Bin,'log-server' );
 
-  open my $server, qq'$^X $server_file "$web_page" "$logfile" |'
+  open my $server, qq'$^X "$server_file" "$web_page" "$logfile" |'
     or die "Couldn't spawn fake server $server_file : $!";
   my $url = <$server>;
   chomp $url;
@@ -79,6 +80,8 @@ sub spawn {
   my $lhurl = URI::URL->new( $url );
   $lhurl->host( "localhost" );
   $self->{_server_url} = $lhurl;
+
+  diag "Started local server on $lhurl";
 
   $self;
 };
