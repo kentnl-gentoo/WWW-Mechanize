@@ -6,13 +6,13 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 0.75_01
+Version 0.75_02
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.121 2004/03/28 04:39:27 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.123 2004/04/05 04:45:05 petdance Exp $
 
 =cut
 
-our $VERSION = "0.75_01";
+our $VERSION = "0.75_02";
 
 =head1 SYNOPSIS
 
@@ -1267,11 +1267,37 @@ sub request {
         }
     }
 
-    $self->_reset_page();
+    $self->_reset_page;
     $self->_parse_html if $self->is_html;
 
     return $res;
 } # request
+
+=head2 $mech->update_html( $html )
+
+Allows you to replace the HTML that the mech has found.  Updates the
+forms and links.
+
+Say you have a page that you know has malformed output, and you want to
+update it so the links come out correctly:
+
+    my $html = $mech->content;
+    $html =~ s[</option>.?.?.?</td>][</option></select></td>]isg;
+    $mech->update_html( $html );
+
+=cut
+
+sub update_html {
+    my $self = shift;
+    my $html = shift;
+
+    $self->_reset_page;
+    $self->{ct} = 'text/html';
+    $self->{content} = $html;
+    $self->_parse_html;
+
+    return;
+}
 
 =head2 $mech->_parse_html()
 
@@ -1383,7 +1409,6 @@ sub _reset_page {
     my $self = shift;
 
     $self->{links} = [];
-    delete $self->{title};
     $self->{forms} = [];
     delete $self->{form};
 
