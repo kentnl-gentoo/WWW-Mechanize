@@ -6,13 +6,13 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 0.71_01
+Version 0.71_02
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.99 2003/12/20 14:09:21 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.101 2003/12/22 20:51:44 petdance Exp $
 
 =cut
 
-our $VERSION = "0.71_01";
+our $VERSION = "0.71_02";
 
 =head1 SYNOPSIS
 
@@ -1301,7 +1301,7 @@ sub _extract_links {
         }
 
         next unless defined $url;   # probably just a name link or <AREA NOHREF...>
-        push( @{$self->{links}}, WWW::Mechanize::Link->new( $self->base, $url, $text, $name, $tag ) );
+        push( @{$self->{links}}, WWW::Mechanize::Link->new( $url, $text, $name, $tag, $self->base ) );
     }
 
     # Old extract_links() returned a value.  Carp if someone expects
