@@ -1,3 +1,4 @@
+require 5;
 use ExtUtils::MakeMaker qw( WriteMakefile prompt );
 use ExtUtils::Command qw( touch rm_f );
 use File::Spec;
@@ -29,7 +30,7 @@ EOT
     }
 } # failed connect
 
-my @tests = glob File::Spec->catfile( 't', '*.t' );
+my @tests = File::Spec->catfile( 't', '*.t' );
 push( @tests, glob File::Spec->catfile( 't', 'live', '*.t' ) ) unless $skiplive;
 
 my $parms = {

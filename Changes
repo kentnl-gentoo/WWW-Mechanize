@@ -1,6 +1,14 @@
-# $Id: Changes,v 1.98 2003/12/22 20:40:28 petdance Exp $
+# $Id: Changes,v 1.101 2004/01/13 04:36:36 petdance Exp $
 Revision history for Perl extension WWW::Mechanize
 
+0.72
+	[ENHANCEMENTS]
+	* Added the set_visible() method, thanks to Peter Scott.
+
+	[INTERNALS]
+	* Made the globbing in Makefile.PL a little less command-line
+	  intensive.  Also fixed the missing files in MANIFEST.
+	* Added t/pod-coverage.t for testing POD coverage.
 
 0.71_02 Mon Dec 22 14:29:13 CST 2003
 	[THINGS THAT MAY BREAK YOUR CODE]
