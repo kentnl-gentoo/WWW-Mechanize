@@ -1,5 +1,30 @@
-# $Id: Changes,v 1.62 2003/10/06 22:43:12 petdance Exp $
+# $Id: Changes,v 1.69 2003/10/08 01:50:53 petdance Exp $
 Revision history for Perl extension WWW::Mechanize
+
+0.62	October 7, 2003  8:46pm
+	[THINGS THAT MIGHT BREAK YOUR CODE]
+	* The parms for find_link()'s url_regex and text_regex must now
+	  be actual regex objects, as in qr// objects.	They can't just
+	  be little text strings.  If this is a big bummer, let me know.
+
+	[ENHANCEMENTS]
+	* Added autocheck parm, to tell your Mech object to die on
+	  any error.  This saves you from having to check yourself.
+	  This closes RT #3056.
+	* Renamed the internal _carp() method as warn().
+	* Added a die() method.
+	* Can now override the warn() and die() handlers in the
+	  constructor.
+	* find_link() now complains if it gets a *_regex parm that isn't
+	  actually a regex.  See RT #3032.
+
+	[FIXES]
+	* mech-dump.t no longer runs if you're not installing mech-dump.
+	  See RT #3724.
+
+	[DOCUMENTATION]
+	* More FAQs.  Thanks to Gavin Estey.
+
 
 0.61	October 6, 2003  6:30pm
 	No new functionality here.  It's mostly to get the new tests

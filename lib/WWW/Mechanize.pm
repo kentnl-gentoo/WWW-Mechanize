@@ -6,13 +6,13 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 0.61
+Version 0.62
 
-    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.62 2003/10/06 23:02:27 petdance Exp $
+    $Header: /cvsroot/www-mechanize/www-mechanize/lib/WWW/Mechanize.pm,v 1.71 2003/10/08 01:50:53 petdance Exp $
 
 =cut
 
-our $VERSION = "0.61";
+our $VERSION = "0.62";
 
 =head1 SYNOPSIS
 
@@ -26,7 +26,7 @@ a history of the URLs you've visited, which can be queried and revisited.
     use WWW::Mechanize;
     my $a = WWW::Mechanize->new();
 
-    $a->get($url);
+    $a->get( $url );
 
     $a->follow_link( n => 3 );
     $a->follow_link( text_regex => qr/download this/i );
@@ -63,13 +63,13 @@ If you want finer control over over your page fetching, you can use
 these methods. C<follow_link> and C<submit_form> are just high
 level wrappers around them.
 
-    $a->follow($link);
-    $a->find_link(n => $number);
-    $a->form_number($number);
-    $a->form_name($name);
-    $a->field($name, $value);
+    $a->follow( $link );
+    $a->find_link( n => $number );
+    $a->form_number( $number );
+    $a->form_name( $name );
+    $a->field( $name, $value );
     $a->set_fields( %field_values );
-    $a->click($button);
+    $a->click( $button );
 
 L<WWW::Mechanize> is a proper subclass of L<LWP::UserAgent> and
 you can also use any of L<LWP::UserAgent>'s methods.
@@ -163,23 +163,81 @@ bot accepting cookies, you have to explicitly disallow it, like so:
 
     my $a = WWW::Mechanize->new( cookie_jar => undef );
 
+Here are the parms that WWW::Mechanize recognizes.  These do not include
+parms that L<LWP::UserAgent> recognizes.
+
+=over 4
+
+=item * autocheck => [0|1]
+
+Checks each request made to see if it was successful.  This saves you
+the trouble of manually checking yourself.  Any errors found are errors,
+not warnings.  Default is off.
+
+=item * onwarn => \&func()
+
+Reference to a C<warn>-compatible function, such as C<< L<Carp>::carp >>,
+that is called when a warning needs to be shown.
+
+If this is set to C<undef>, no warnings will ever be shown.  However,
+it's probably better to use the C<quiet> method to control that behavior.
+
+If this value is not passed, Mech uses C<Carp::carp> if L<Carp> is
+installed, or C<CORE::warn> if not.
+
+=item * onerror => \&func()
+
+Reference to a C<die>-compatible function, such as C<< L<Carp>::croak >>,
+that is called when there's a fatal error.
+
+If this is set to C<undef>, no errors will ever be shown.
+
+If this value is not passed, Mech uses C<Carp::croak> if L<Carp> is
+installed, or C<CORE::die> if not.
+
+=item * quiet => [0|1]
+
+Don't complain on warnings.  Setting C<< quiet => 1 >> is the same as
+calling C<< $agent->quiet(1) >>.  Default is off.
+
+=back
+
 =cut
 
 sub new {
     my $class = shift;
 
-    my %default_parms = (
-        agent       => "WWW-Mechanize/$VERSION",
+    my %parent_parms = (
+        agent	    => "WWW-Mechanize/$VERSION",
         cookie_jar  => {},
     );
 
-    my %parms = ( %default_parms, @_ );
+    my %mech_parms = (
+	autocheck   => 0,
+	onwarn	    => \&WWW::Mechanize::_warn,
+	onerror	    => \&WWW::Mechanize::_die,
+	quiet	    => 0,
+    );
 
-    my $self = $class->SUPER::new( %parms );
+    my %passed_parms = @_;
+
+    # Keep the mech-specific parms before creating the object.
+    while ( my($key,$value) = each %passed_parms ) {
+	if ( exists $mech_parms{$key} ) {
+	    $mech_parms{$key} = $value;
+	} else {
+	    $parent_parms{$key} = $value;
+	}
+    }
+
+    my $self = $class->SUPER::new( %parent_parms );
     bless $self, $class;
 
+    # Use the mech parms now that we have a mech object.
+    for my $parm ( keys %mech_parms ) {
+	$self->{$parm} = $mech_parms{$parm};
+    }
     $self->{page_stack} = [];
-    $self->{quiet} = 0;
     $self->env_proxy();
     push( @{$self->requests_redirectable}, 'POST' );
 
@@ -237,7 +295,7 @@ sub agent_alias {
     if ( defined $known_agents{$alias} ) {
 	return $self->agent( $known_agents{$alias} );
     } else {
-	$self->_carp( qq{Unknown agent alias "$alias"} );
+	$self->warn( qq{Unknown agent alias "$alias"} );
 	return $self->agent();
     }
 }
@@ -358,7 +416,7 @@ sub follow_link {
 
     if ( $parms{n} eq "all" ) {
 	delete $parms{n};
-	$self->_carp( qq{follow_link(n=>"all") is not valid} );
+	$self->warn( qq{follow_link(n=>"all") is not valid} );
     }
 
     my $response;
@@ -388,7 +446,7 @@ sub form_number {
         $self->{form} = $self->{forms}->[$form-1];
         return $self->{form};
     } else {
-	$self->_carp( "There is no form numbered $form" );
+	$self->warn( "There is no form numbered $form" );
         return undef;
     }
 }
@@ -410,11 +468,11 @@ sub form_name {
     my $temp;
     my @matches = grep {defined($temp = $_->attr('name')) and ($temp eq $form) } $self->forms;
     if ( @matches ) {
-	$self->_carp( "There are ", scalar @matches, " forms named $form.  The first one was used." )
+	$self->warn( "There are ", scalar @matches, " forms named $form.  The first one was used." )
 	    if @matches > 1;
         return $self->{form} = $matches[0];
     } else {
-	$self->_carp( qq{ There is no form named "$form"} );
+	$self->warn( qq{ There is no form named "$form"} );
         return undef;
     }
 }
@@ -509,7 +567,7 @@ sub tick {
     } # while
 
     # got self far?  Didn't find anything
-    $self->_carp( qq{No checkbox "$name" for value "$value" in form} );
+    $self->warn( qq{No checkbox "$name" for value "$value" in form} );
 } # tick()
 
 =head2 C<< $a->untick($name, $value) >>
@@ -608,7 +666,7 @@ sub submit_form {
 
     for ( keys %args ) {
 	if ( !/^(form_(number|name)|fields|button|x|y)$/ ) {
-	    $self->_carp( qq{Unknown submit_form parameter "$_"} );
+	    $self->warn( qq{Unknown submit_form parameter "$_"} );
 	}
     }
 
@@ -853,21 +911,28 @@ sub find_link {
     my $self = shift;
     my %parms = ( n=>1, @_ );
 
-    my @links = @{$self->{links}};
-
-    return unless @links ;
-
     my $wantall = ( $parms{n} eq "all" );
 
-    for ( keys %parms ) {
-	if ( !/^(n|(text|url)(_regex)?)$/ ) {
-	    $self->_carp( qq{Unknown link-finding parameter "$_"} );
+    for my $key ( keys %parms ) {
+	my $val = $parms{$key};
+	if ( $key !~ /^(n|(text|url)(_regex)?)$/ ) {
+	    $self->warn( qq{Unknown link-finding parameter "$key"} );
+	    delete $parms{$key};
+	    next;
 	}
-    }
+
+	if ( ($key =~ /_regex$/) && (ref($val) ne "Regexp" ) ) {
+	    $self->warn( qq{$val passed as $key is not a regex} );
+	    delete $parms{$key};
+	    next;
+	}
+    } # for keys %parms
+
+    my @links = $self->links or return;
 
     my @conditions;
-    push @conditions, q/ $_[0]->[0] eq $parms{url} /	    if defined $parms{url};
-    push @conditions, q/ $_[0]->[0] =~ $parms{url_regex} /  if defined $parms{url_regex};
+    push @conditions, q/ $_[0]->[0] eq $parms{url} /				    if defined $parms{url};
+    push @conditions, q/ $_[0]->[0] =~ $parms{url_regex} /			    if defined $parms{url_regex};
     push @conditions, q/ defined($_[0]->[1]) and $_[0]->[1] eq $parms{text} /	    if defined $parms{text};
     push @conditions, q/ defined($_[0]->[1]) and $_[0]->[1] =~ $parms{text_regex} / if defined $parms{text_regex};
 
@@ -1029,6 +1094,10 @@ sub request {
     if ( $self->{res}->is_success ) {
 	$self->{uri} = $self->{redirected_uri};
 	$self->{last_uri} = $self->{uri};
+    } else {
+	if ( $self->{autocheck} ) {
+	    $self->die( "Error ", $request->method, "ing ", $request->uri, ": ", $res->message );
+	}
     }
 
     $self->_reset_page();
@@ -1080,7 +1149,7 @@ sub follow {
         if ($link <= $#links) {
             $thislink = $links[$link];
         } else {
-	    $self->_carp( "Link number $link is greater than maximum link $#links on this page ($self->{uri})" );
+	    $self->warn( "Link number $link is greater than maximum link $#links on this page ($self->{uri})" );
             return;
         }
     } else {                        # user provided a regexp
@@ -1091,7 +1160,7 @@ sub follow {
             }
         }
         unless ($thislink) {
-	    $self->_carp( "Can't find any link matching $link on this page ($self->{uri})" );
+	    $self->warn( "Can't find any link matching $link on this page ($self->{uri})" );
             return;
         }
     }
@@ -1187,7 +1256,7 @@ sub _extract_links {
     # this version to return something.
     if ( defined wantarray ) {
 	my $func = (caller(0))[3];
-	$self->_carp( "$func does not return a useful value" );
+	$self->warn( "$func does not return a useful value" );
     }
 
     return;
@@ -1242,16 +1311,43 @@ sub _pop_page_stack {
     return 1;
 }
 
-sub _carp {
+sub warn {
     my $self = shift;
 
-    if ( !$self->quiet ) {
-	eval "require Carp";
-	if ( $@ ) {
-	    warn @_;
-	} else {
-	    &Carp::carp; # pass thru
-	}
+    return unless my $handler = $self->{onwarn};
+
+    return if $self->quiet;
+
+    $handler->(@_);
+}
+
+sub die {
+    my $self = shift;
+
+    return unless my $handler = $self->{onerror};
+
+    $handler->(@_);
+}
+
+
+# NOT an object method!
+sub _warn {
+    eval "require Carp";
+    if ( $@ ) {
+	CORE::warn @_;
+    } else {
+	&Carp::carp; # pass thru
+    }
+    return;
+}
+
+# NOT an object method!
+sub _die {
+    eval "require Carp";
+    if ( $@ ) {
+	CORE::die @_;
+    } else {
+	&Carp::croak; # pass thru
     }
     return;
 }

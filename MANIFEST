@@ -14,8 +14,9 @@ t/99.pod.t
 t/add_header.t
 t/area_link.html
 t/area_link.t
-t/carp.t
+t/autocheck.t
 t/click.t
+t/die.t
 t/failure.t
 t/field.html
 t/field.t
@@ -42,6 +43,7 @@ t/new.t
 t/page_stack.t
 t/referer-server
 t/referer.t
+t/regex-error.t
 t/reload.t
 t/submit.t
 t/tick.html
