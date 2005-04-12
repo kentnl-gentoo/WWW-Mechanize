@@ -1,7 +1,6 @@
 Changes
 Makefile.PL
 MANIFEST
-META.yml
 
 bin/mech-dump
 
@@ -77,3 +76,4 @@ t/local/referer-server
 t/local/referer.t
 t/local/reload.t
 t/local/submit.t
+META.yml                                 Module meta-data (added by MakeMaker)

@@ -1,5 +1,13 @@
 Revision history for Perl extension WWW::Mechanize
 
+1.13_01 Tue Apr 12 14:11:18 CDT 2005
+        [ENHANCEMENTS]
+        * Now dies if you call submit_form() with a non-existsing
+          form_number or form_name.  Before, it would just warn.
+
+        [DOCUMENTATION]
+        * Added an example of using credentials() in the cookbook.
+
 1.12    Thu Feb 24 23:38:44 CST 2005
         [FIXES]
         * Fixed RT #9026: hang in t/local/back.t under Windows XP.
