@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.13_01
+Version 1.14
 
 =cut
 
-our $VERSION = "1.13_01";
+our $VERSION = "1.14";
 
 =head1 SYNOPSIS
 
@@ -74,6 +74,9 @@ L<WWW::Mechanize> is a proper subclass of L<LWP::UserAgent> and
 you can also use any of L<LWP::UserAgent>'s methods.
 
     $mech->add_header($name => $value);
+
+Please note that Mech does NOT support JavaScript.  Please check the
+FAQ in WWW::Mechanize::FAQ for more.
 
 =head1 IMPORTANT LINKS
 
@@ -2264,6 +2267,8 @@ Just like Mech, but using Microsoft Internet Explorer to do the work.
 
 =item * L<WWW::Bugzilla>
 
+=item * L<WWW::CheckSite>
+
 =item * L<WWW::Google::Groups>
 
 =item * L<WWW::Hotmail>
@@ -2329,6 +2334,7 @@ Leland Johnson,
 Joshua Gatcomb,
 Julien Beasley,
 Abe Timmerman,
+Peter Stevens,
 and the late great Iain Truskett.
 
 =head1 COPYRIGHT
