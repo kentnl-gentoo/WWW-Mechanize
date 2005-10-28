@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.14
+Version 1.16
 
 =cut
 
-our $VERSION = "1.14";
+our $VERSION = "1.16";
 
 =head1 SYNOPSIS
 
@@ -528,6 +528,9 @@ links.  In scalar context, returns an array reference of all links.
 
 sub links {
     my $self = shift ;
+
+    $self->_extract_links() unless $self->{_extracted_links};
+
     return @{$self->{links}} if wantarray;
     return $self->{links};
 }
@@ -810,6 +813,9 @@ images.  In scalar context, returns an array reference of all images.
 
 sub images {
     my $self = shift ;
+
+    $self->_extract_images() unless $self->{_extracted_images};
+
     return @{$self->{images}} if wantarray;
     return $self->{images};
 }
@@ -1723,8 +1729,8 @@ sub update_html {
         }
     }
     $self->{form}  = $self->{forms}->[0];
-    $self->_extract_links();
-    $self->_extract_images();
+    $self->{_extracted_links} = 0;
+    $self->{_extracted_images} = 0;
 
     return;
 }
@@ -1903,7 +1909,10 @@ Resets the internal fields that track page parsed stuff.
 sub _reset_page {
     my $self = shift;
 
+    $self->{_extracted_links} = 0;
+    $self->{_extracted_images} = 0;
     $self->{links} = [];
+    $self->{images} = [];
     $self->{forms} = [];
     delete $self->{form};
 
@@ -1928,14 +1937,17 @@ my %link_tags = (
 sub _extract_links {
     my $self = shift;
 
-    my $parser = HTML::TokeParser->new(\$self->{content});
 
     $self->{links} = [];
+    if ( defined $self->{content} ) {
+        my $parser = HTML::TokeParser->new(\$self->{content});
+        while ( my $token = $parser->get_tag( keys %link_tags ) ) {
+            my $link = $self->_link_from_token( $token, $parser );
+            push( @{$self->{links}}, $link ) if $link;
+        } # while
+    }
 
-    while ( my $token = $parser->get_tag( keys %link_tags ) ) {
-        my $link = $self->_link_from_token( $token, $parser );
-        push( @{$self->{links}}, $link ) if $link;
-    } # while
+    $self->{_extracted_links} = 1;
 
     return;
 }
@@ -1949,14 +1961,17 @@ my %image_tags = (
 sub _extract_images {
     my $self = shift;
 
-    my $parser = HTML::TokeParser->new(\$self->{content});
-
     $self->{images} = [];
 
-    while ( my $token = $parser->get_tag( keys %image_tags ) ) {
-        my $image = $self->_image_from_token( $token, $parser );
-        push( @{$self->{images}}, $image ) if $image;
-    } # while
+    if ( defined $self->{content} ) {
+        my $parser = HTML::TokeParser->new(\$self->{content});
+        while ( my $token = $parser->get_tag( keys %image_tags ) ) {
+            my $image = $self->_image_from_token( $token, $parser );
+            push( @{$self->{images}}, $image ) if $image;
+        } # while
+    }
+
+    $self->{_extracted_images} = 1;
 
     return;
 }
