@@ -5,7 +5,7 @@
 # the file COPYING for details.
 
 #
-# $Id: Automate.pm,v 1.11 2002/02/18 16:29:10 skud Exp $
+# $Id: Automate.pm,v 1.1.1.1 2005/12/01 03:07:33 chezskud Exp $
 #
 
 package WWW::Automate;
@@ -19,7 +19,7 @@ use Carp;
 
 our @ISA = qw( LWP::UserAgent );
 
-my $VERSION = $VERSION = "0.20";
+my $VERSION = $VERSION = "0.21";
 
 my $headers;
 
@@ -28,6 +28,12 @@ my $headers;
 =head1 NAME
 
 WWW::Automate - automate interaction with websites
+
+=head1 NOTICE
+
+B<THIS MODULE IS NO LONGER MAINTAINED.>
+
+Please use WWW::Mechanize instead.
 
 =head1 SYNOPSIS
 
@@ -90,6 +96,7 @@ our $base = "http://localhost/";
 
 sub new {
     shift;
+    warn "WWW::Automate is no longer maintained.  Please use WWW::Mechanize instead.\n";
     my $self = { page_stack => [] };
     bless $self;
     $self->agent("WWW-Automate-$VERSION");
