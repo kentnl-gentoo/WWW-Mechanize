@@ -1,7 +1,7 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         WWW-Mechanize
-version:      1.16
+version:      1.17_01
 version_from: lib/WWW/Mechanize.pm
 installdirs:  site
 requires:
@@ -11,6 +11,7 @@ requires:
     Getopt::Long:                  0
     HTML::Form:                    1.038
     HTML::HeadParser:              0
+    HTML::Parser:                  3.33
     HTML::TokeParser:              2.28
     HTTP::Daemon:                  0
     HTTP::Request:                 1.3
