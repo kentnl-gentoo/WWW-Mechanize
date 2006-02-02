@@ -13,7 +13,7 @@ lib/WWW/Mechanize/FAQ.pod
 lib/WWW/Mechanize/Image.pm
 lib/WWW/Mechanize/Link.pm
 
-t/00.load.t
+t/00-load.t
 t/add_header.t
 t/aliases.t
 t/area_link.html
@@ -37,7 +37,6 @@ t/image-parse.t
 t/link-base.t
 t/link-relative.t
 t/link.t
-t/mech-dump.t
 t/new.t
 t/pod-coverage.t
 t/pod.t
@@ -76,4 +75,6 @@ t/local/referer-server
 t/local/referer.t
 t/local/reload.t
 t/local/submit.t
+
+t/mech-dump/mech-dump.t
 META.yml                                 Module meta-data (added by MakeMaker)

@@ -1,51 +1,32 @@
 require 5.6.1;
 use ExtUtils::MakeMaker qw( WriteMakefile prompt );
-use ExtUtils::Command qw( touch rm_f );
 use File::Spec;
+use Getopt::Long;
 use strict;
 
-use constant FLAG_SKIPMECHDUMP => File::Spec->catfile( "t", "SKIP-MECH-DUMP" );
+GetOptions(
+    'live!'         => \my $live,
+    'local!'        => \my $local,
+    'mech-dump!'    => \my $mechdump,
+    'all'           => \my $all,
+);
 
-# Much logic stolen fromm libwww-perl's Makefile.PL
-my $skiplive = grep /--nolive/i, @ARGV;
-my $skiplocal = grep /--nolocal/i, @ARGV;
-
-if ( !$skiplive ) {
-    require IO::Socket;
-    my $s = IO::Socket::INET->new(
-        PeerAddr => "www.google.com:80",
-        Timeout  => 10,
-    );
-    if ($s) {
-        close($s);
-        $skiplive = 0;
-
-        print <<EOT;
-
-Part of WWW::Mechanize's test suite is run live tests against Google.
-Since it looks like you're connected to the Internet, these test will
-be enabled.  If you want to disable these tests, re-run Makefile.PL with
-the --nolive switch.
-
-EOT
-    } else {
-        print <<EOT;
-
-    It seems that you are not directly connected to the Internet.  Some
-    of the WWW::Mechanize tests interact with websites such as Google,
-    in addition to its own internal tests.
-
-EOT
-
-        if ( prompt("Do you want to skip these tests?", "y") =~ /^y/i ) {
-            $skiplive = 1;
-        }
-    } # failed connect
+if ( $all ) {
+    $live = $local = $mechdump = 1;
+}
+else {
+    if ( not defined $live ) {
+        $live = get_live();
+    }
+    if ( not defined $local ) {
+        $local = 1;
+    }
 }
 
 my @tests = glob File::Spec->catfile( 't', '*.t' );
-push( @tests, glob File::Spec->catfile( 't', 'local', '*.t' ) ) unless $skiplocal;
-push( @tests, glob File::Spec->catfile( 't', 'live', '*.t' ) ) unless $skiplive;
+push( @tests, glob File::Spec->catfile( 't', 'live', '*.t' ) ) if $live;
+push( @tests, glob File::Spec->catfile( 't', 'local', '*.t' ) ) if $local;
+push( @tests, glob File::Spec->catfile( 't', 'mech-dump', '*.t' ) ) if $mechdump;
 
 my $parms = {
     'NAME'          => 'WWW::Mechanize',
@@ -73,29 +54,35 @@ my $parms = {
         'URI::file'         => 0,
     },
     test            => { TESTS => join( " ", @tests ) },
-    clean           => { FILES => join( " ", FLAG_SKIPMECHDUMP, 'WWW-Mechanize-0*' ) },
+    clean           => { FILES => 'WWW-Mechanize-*' },
 };
 
-if ( prompt( "Do you want to install the mech-dump utility?", "y" ) =~ /^y/i ) {
+if ( not defined $mechdump ) {
+    $mechdump = (prompt( "Do you want to install the mech-dump utility?", "y" ) =~ /^y/i );
+    print <<EOT;
+
+Note that you can skip this question with --mech-dump or --nomech-dump on the
+command line when you run Makefile.PL.
+
+EOT
+}
+
+if ( $mechdump ) {
     $parms->{EXE_FILES} = [ 'bin/mech-dump' ];
     $parms->{PREREQ_PM}->{'Getopt::Long'} = 0;
     $parms->{PREREQ_PM}->{'Pod::Usage'} = 0;
-
-    local @ARGV = FLAG_SKIPMECHDUMP;
-    rm_f();
-} else {
-    local @ARGV = FLAG_SKIPMECHDUMP;
-    touch();
 }
 
 eval { require LWP; };
-if ($@ or ! LWP::Protocol::implementor('https') ) {
-    print <<EOT;
+if (!$@) {
+    if ( ! LWP::Protocol::implementor('https') ) {
+        print <<EOT;
 
 It looks like you don't have SSL capability (like IO::Socket::SSL) installed. 
 You will not be able to process https:// URLs correctly.
 
 EOT
+    }
 }
 
 my @missing;
@@ -118,3 +105,47 @@ EOT
 }
 
 WriteMakefile( %$parms );
+
+
+sub get_live {
+    require IO::Socket;
+    my $s = IO::Socket::INET->new(
+        PeerAddr => "www.google.com:80",
+        Timeout  => 10,
+    );
+    if ($s) {
+        close($s);
+
+        print <<EOT;
+
+Part of WWW::Mechanize's test suite is run live tests against Google.
+These tests are a good way to make sure that Mechanize is ready to run
+in your environment, but they can also cause warnings if test sites have
+changed since the last update of Mechanize.  Skipping them won't hurt,
+but it might ignore problems.
+
+EOT
+    }
+    else {
+        print <<EOT;
+
+It seems that you are not directly connected to the Internet.  Some of the
+WWW::Mechanize tests interact with websites such as Google, in addition
+to its own internal tests.  If you are not connected to the Internet,
+these tests will probably fail.
+
+EOT
+
+    } # failed connect
+    my $dolive = (prompt("Do you want to enable these live tests?", "n") =~ /^y/i);
+
+    print <<EOT;
+
+Note that you can skip this question with --live or --nolive on the
+command line when you run Makefile.PL.
+
+EOT
+
+    return $dolive;
+}
+
