@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.18
+Version 1.19_02
 
 =cut
 
-our $VERSION = "1.18";
+our $VERSION = "1.19_02";
 
 =head1 SYNOPSIS
 
@@ -143,7 +143,7 @@ Checks each request made to see if it was successful.  This saves you
 the trouble of manually checking yourself.  Any errors found are errors,
 not warnings.  Default is off.
 
-=item * C<< onwarn => \&func() >>
+=item * C<< onwarn => \&func >>
 
 Reference to a C<warn>-compatible function, such as C<< L<Carp>::carp >>,
 that is called when a warning needs to be shown.
@@ -154,7 +154,7 @@ it's probably better to use the C<quiet> method to control that behavior.
 If this value is not passed, Mech uses C<Carp::carp> if L<Carp> is
 installed, or C<CORE::warn> if not.
 
-=item * C<< onerror => \&func() >>
+=item * C<< onerror => \&func >>
 
 Reference to a C<die>-compatible function, such as C<< L<Carp>::croak >>,
 that is called when there's a fatal error.
@@ -379,7 +379,8 @@ sub success {
 
 =head2 $mech->uri()
 
-Returns the current URI.
+Returns the current URI as a L<URI> object. This object stringifies
+to the URI itself.
 
 =head2 $mech->response() / $mech->res()
 
@@ -424,7 +425,10 @@ HTTP headers.
 
 =cut
 
-sub uri {           my $self = shift; return $self->{uri}; }
+sub uri {      
+    my $self = shift; 
+    return $self->response->request->uri;
+}
 sub res {           my $self = shift; return $self->{res}; }
 sub response {      my $self = shift; return $self->{res}; }
 sub status {        my $self = shift; return $self->{status}; }
@@ -649,7 +653,7 @@ more than one tag, as in:
     $mech->find_link( tag_regex => qr/^(a|frame)$/ );
 
 The tags and attributes looked at are defined below, at
-L<$mech->find_link() : link format>.
+L<< $mech->find_link() : link format >>.
 
 =back
 
@@ -725,16 +729,16 @@ sub _match_any_link_parms {
     # No conditions, anything matches
     return 1 unless keys %$p;
 
-    return if defined $p->{url}           and !($link->url eq $p->{url} );
-    return if defined $p->{url_regex}     and !($link->url =~ $p->{url_regex} );
-    return if defined $p->{url_abs}       and !($link->url_abs eq $p->{url_abs} );
-    return if defined $p->{url_abs_regex} and !($link->url_abs =~ $p->{url_abs_regex} );
-    return if defined $p->{text}          and !(defined($link->text) and $link->text eq $p->{text} );
-    return if defined $p->{text_regex}    and !(defined($link->text) and $link->text =~ $p->{text_regex} );
-    return if defined $p->{name}          and !(defined($link->name) and $link->name eq $p->{name} );
-    return if defined $p->{name_regex}    and !(defined($link->name) and $link->name =~ $p->{name_regex} );
-    return if defined $p->{tag}           and !($link->tag and $link->tag eq $p->{tag} );
-    return if defined $p->{tag_regex}     and !($link->tag and $link->tag =~ $p->{tag_regex} );
+    return if defined $p->{url}           && !($link->url eq $p->{url} );
+    return if defined $p->{url_regex}     && !($link->url =~ $p->{url_regex} );
+    return if defined $p->{url_abs}       && !($link->url_abs eq $p->{url_abs} );
+    return if defined $p->{url_abs_regex} && !($link->url_abs =~ $p->{url_abs_regex} );
+    return if defined $p->{text}          && !(defined($link->text) && $link->text eq $p->{text} );
+    return if defined $p->{text_regex}    && !(defined($link->text) && $link->text =~ $p->{text_regex} );
+    return if defined $p->{name}          && !(defined($link->name) && $link->name eq $p->{name} );
+    return if defined $p->{name_regex}    && !(defined($link->name) && $link->name =~ $p->{name_regex} );
+    return if defined $p->{tag}           && !($link->tag && $link->tag eq $p->{tag} );
+    return if defined $p->{tag_regex}     && !($link->tag && $link->tag =~ $p->{tag_regex} );
 
     # Success: everything that was defined passed.
     return 1;
@@ -924,14 +928,14 @@ sub _match_any_image_parms {
     # No conditions, anything matches
     return 1 unless keys %$p;
 
-    return if defined $p->{url}           and !($image->url eq $p->{url} );
-    return if defined $p->{url_regex}     and !($image->url =~ $p->{url_regex} );
-    return if defined $p->{url_abs}       and !($image->url_abs eq $p->{url_abs} );
-    return if defined $p->{url_abs_regex} and !($image->url_abs =~ $p->{url_abs_regex} );
-    return if defined $p->{alt}           and !(defined($image->alt) and $image->alt eq $p->{alt} );
-    return if defined $p->{alt_regex}     and !(defined($image->alt) and $image->alt =~ $p->{alt_regex} );
-    return if defined $p->{tag}           and !($image->tag and $image->tag eq $p->{tag} );
-    return if defined $p->{tag_regex}     and !($image->tag and $image->tag =~ $p->{tag_regex} );
+    return if defined $p->{url}           && !($image->url eq $p->{url} );
+    return if defined $p->{url_regex}     && !($image->url =~ $p->{url_regex} );
+    return if defined $p->{url_abs}       && !($image->url_abs eq $p->{url_abs} );
+    return if defined $p->{url_abs_regex} && !($image->url_abs =~ $p->{url_abs_regex} );
+    return if defined $p->{alt}           && !(defined($image->alt) && $image->alt eq $p->{alt} );
+    return if defined $p->{alt_regex}     && !(defined($image->alt) && $image->alt =~ $p->{alt_regex} );
+    return if defined $p->{tag}           && !($image->tag && $image->tag eq $p->{tag} );
+    return if defined $p->{tag_regex}     && !($image->tag && $image->tag =~ $p->{tag_regex} );
 
     # Success: everything that was defined passed.
     return 1;
@@ -960,7 +964,7 @@ sub find_all_images {
 
 =head2 $mech->forms
 
-Lists all the forms on the current page.  Each form is an HTML::Form
+Lists all the forms on the current page.  Each form is an L<HTML::Form>
 object.  In list context, returns a list of all forms.  In scalar
 context, returns an array reference of all forms.
 
@@ -977,21 +981,28 @@ sub forms {
 
 Selects the I<number>th form on the page as the target for subsequent
 calls to C<L<field()>> and C<L<click()>>.  Also returns the form that was
-selected.  Emits a warning and returns undef if there is no such
-form.  Forms are indexed from 1, so the first form is number 1,
-not zero.
+selected.  
+
+If it is found, the form is returned as an L<HTML::Form> object and set internally  
+for later used with Mech's form methods such as C<L<field()>> and C<L<click()>>.
+
+Emits a warning and returns undef if no form is found. 
+
+The first form is number 1, not zero.
 
 =cut
 
 sub form_number {
     my ($self, $form) = @_;
+    # XXX Should we die if no $form is defined? Same question for form_name()
+
     if ($self->{forms}->[$form-1]) {
         $self->{form} = $self->{forms}->[$form-1];
         return $self->{form};
     }
     else {
         $self->warn( "There is no form numbered $form" );
-        return;
+        return undef;
     }
 }
 
@@ -999,8 +1010,12 @@ sub form_number {
 
 Selects a form by name.  If there is more than one form on the page
 with that name, then the first one is used, and a warning is
-generated.  Also returns the form itself, or undef if it's not
-found.
+generated.  
+
+If it is found, the form is returned as an L<HTML::Form> object and set internally  
+for later used with Mech's form methods such as C<L<field()>> and C<L<click()>>.
+
+Returns undef if no form is found. 
 
 Note that this functionality requires libwww-perl 5.69 or higher.
 
@@ -1018,6 +1033,46 @@ sub form_name {
     }
     else {
         $self->warn( qq{ There is no form named "$form"} );
+        return undef;
+    }
+}
+
+=head2 $mech->form_with_fields(@fields)
+
+Selects a form by passing in a list of field names it must contain.  If there
+is more than one form on the page with that matches, then the first one is used,
+and a warning is generated.  
+
+If it is found, the form is returned as an L<HTML::Form> object and set internally  
+for later used with Mech's form methods such as C<L<field()>> and C<L<click()>>.
+
+Returns undef if no form is found. 
+
+Note that this functionality requires libwww-perl 5.69 or higher.
+
+=cut
+
+sub form_with_fields {
+    my ($self, @fields) = @_;
+    die "no fields provided" unless scalar @fields;
+
+    my @matches;
+    FORMS: for my $form (@{ $self->forms }) {
+        my @fields_in_form = $form->param();
+        for my $field (@fields) {
+            next FORMS unless grep { m/^$field$/ } @fields_in_form;
+        }
+        push @matches, $form;
+    }
+
+    if ( @matches ) {
+        if (@matches > 1) {
+            $self->warn( "There are ", scalar @matches, " forms with the named fields.  The first one was used." )
+        }
+        return $self->{form} = $matches[0];
+    }
+    else {
+        $self->warn( qq{There is no form with the requested fields} );
         return undef;
     }
 }
@@ -1068,7 +1123,7 @@ The numbering starts at 1.  This applies to the current form (as set by the
 C<L<form()>> method or defaulting to the first form on the page).
 
 Returns 1 on successfully setting the value. On failure, returns
-undef and calls C<$self->warn()> with an error message.
+undef and calls C<< $self>warn() >> with an error message.
 
 =cut
 
@@ -1215,6 +1270,8 @@ C<OPTION> menu field to "Checking".
 The possible field specifier types are: "text", "password", "hidden",
 "textarea", "file", "image", "submit", "radio", "checkbox" and "option".
 
+C<set_visible> returns the number of values set. 
+
 =cut
 
 sub set_visible {
@@ -1225,6 +1282,7 @@ sub set_visible {
 
     my $num_set = 0;
     for my $value ( @_ ) {
+        # Handle type/value pairs an arrayref
         if ( ref $value eq 'ARRAY' ) {
             my ( $type, $value ) = @$value;
             while ( my $input = shift @inputs ) {
@@ -1236,6 +1294,7 @@ sub set_visible {
                 }
             } # while
         }
+        # by default, it's a value
         else {
             while ( my $input = shift @inputs ) {
                 next if $input->type eq 'hidden';
@@ -1251,7 +1310,7 @@ sub set_visible {
 
 =head2 $mech->tick( $name, $value [, $set] )
 
-'Ticks' the first checkbox that has both the name and value assoicated
+'Ticks' the first checkbox that has both the name and value associated
 with it on the current form.  Dies if there is no named check box for
 that value.  Passing in a false value as the third optional argument
 will cause the checkbox to be unticked.
@@ -1449,6 +1508,16 @@ are a list of key/value pairs, all of which are optional.
 
 =over 4
 
+=item * with_fields => \%fields
+
+Probably all you need for the common case. It combines a smart form selector
+and data setting in one operation. It selects the first form that contains all
+fields mentioned in C<\%fields>.  This is nice because you don't need to know
+the name or number of the form to do this. 
+(calls C<L<form_with_fields>> and C<L<set_fields()>>).
+
+If you choose this, the form_number, form_name and fields options will be ignored.
+
 =item * form_number => n
 
 Selects the I<n>th form (calls C<L<form_number()>>).  If this parm is not
@@ -1458,9 +1527,9 @@ specified, the currently-selected form is used.
 
 Selects the form named I<name> (calls C<L<form_name()>>)
 
-=item * fields => fields
+=item * fields => \%fields
 
-Sets the field values from the I<fields> hashref (calls C<L<set_fields()>>)
+Sets the field values from the I<fields> hashref (calls C<L<set_fields()>>).
 
 =item * button => button
 
@@ -1484,23 +1553,41 @@ sub submit_form {
     my( $self, %args ) = @_ ;
 
     for ( keys %args ) {
-        if ( !/^(form_(number|name)|fields|button|x|y)$/ ) {
+        if ( !/^(form_(number|name|fields)|(with_)?fields|button|x|y)$/ ) {
+            # XXX Why not die here?  
             $self->warn( qq{Unknown submit_form parameter "$_"} );
         }
     }
 
-    if ( my $form_number = $args{'form_number'} ) {
+    my $fields;
+    for (qw/with_fields fields/) {
+        if ($args{$_}) {
+            if (isa($args{$_},'HASH')) { 
+                $fields = $args{$_};
+            }
+            else {
+                die "$_ arg to submit_form must be a hashref";
+            }
+            last;
+        }
+    }
+
+    if ($args{'with_fields'}) {
+        $fields || die "must submit some 'fields' with with_fields";
+        $self->form_with_fields(keys %$fields) or die;
+    }
+    elsif ( my $form_number = $args{'form_number'} ) {
         $self->form_number( $form_number ) or die;
     }
     elsif ( my $form_name = $args{'form_name'} ) {
         $self->form_name( $form_name ) or die;
     }
-
-    if ( my $fields = $args{'fields'} ) {
-        if ( isa( $fields, 'HASH' ) ) {
-            $self->set_fields( %{$fields} ) ;
-        } # TODO: What if it's not a hash?  We just ignore it silently?
+    else {
+        # No form selector was used. 
+        # Maybe a form was set separately, or we'll default to the first form.
     }
+
+    $self->set_fields( %$fields ) if $fields;
 
     my $response;
     if ( $args{button} ) {
@@ -1627,6 +1714,21 @@ sub save_content {
 }
 
 =head1 OVERRIDDEN LWP::UserAgent METHODS
+
+=head2 $mech->clone()
+
+Clone the mech object. We override here to be sure 
+the cookie jar gets copied over
+
+=cut 
+
+sub clone {
+    my $self = shift;
+    my $clone =  $self->SUPER::clone();
+    $clone->{cookie_jar} = $self->cookie_jar;
+    return $clone;
+}
+
 
 =head2 $mech->redirect_ok()
 
@@ -1763,7 +1865,7 @@ sub follow {
             $thislink = $links[$link];
         }
         else {
-            $self->warn( "Link number $link is greater than maximum link $#links on this page ($self->{uri})" );
+            $self->warn( "Link number $link is greater than maximum link $#links on this page (".$self->uri.")" );
             return;
         }
     }
@@ -1821,12 +1923,10 @@ sub _update_page {
     my ($self, $request, $res) = @_;
 
     $self->{req} = $request;
-    $self->{redirected_uri} = $request->uri->as_string;
+    $self->{redirected_uri} = $request->uri;
 
     $self->{res} = $res;
 
-    # These internal hash elements should be dropped in favor of
-    # the accessors soon. -- 1/19/03
     $self->{status}  = $res->code;
     $self->{base}    = $res->base;
     $self->{ct}      = $res->content_type || "";
@@ -2078,8 +2178,6 @@ sub _push_page_stack {
         $self->{page_stack} = [];
 
         my $clone = $self->clone;
-        # Huh, LWP::UserAgent->clone() ditches cookie_jar? Copy it over now.
-        $clone->{cookie_jar} = $self->cookie_jar;
         push( @$save_stack, $clone );
 
         if ( $self->stack_depth > 0 ) {
@@ -2158,6 +2256,8 @@ sub _die {
     require Carp;
     &Carp::croak; # pass thru
 }
+
+1; # End of module
 
 __END__
 
@@ -2360,5 +2460,3 @@ free software; you can redistribute it and/or modify it under the same
 terms as Perl itself.
 
 =cut
-
-1;

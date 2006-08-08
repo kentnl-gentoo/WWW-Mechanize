@@ -1,10 +1,12 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         WWW-Mechanize
-version:      1.18
-version_from: lib/WWW/Mechanize.pm
-installdirs:  site
-requires:
+--- #YAML:1.0
+name:                WWW-Mechanize
+version:             1.19_02
+abstract:            Handy web browsing in a Perl object
+license:             unknown
+generated_by:        ExtUtils::MakeMaker version 6.30_01
+author:              Andy Lester <andy@petdance.com>
+distribution_type:   module
+requires:     
     Carp:                          0
     File::Temp:                    0
     FindBin:                       0
@@ -25,6 +27,6 @@ requires:
     URI:                           1.25
     URI::file:                     0
     URI::URL:                      0
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.30
+meta-spec:
+    url: <http://module-build.sourceforge.net/META-spec-new.html>;
+    version: 1.1
