@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.19_02
+Version 1.20
 
 =cut
 
-our $VERSION = "1.19_02";
+our $VERSION = '1.20';
 
 =head1 SYNOPSIS
 
@@ -1837,6 +1837,40 @@ sub update_html {
     return;
 }
 
+=head2 $mech->credentials($username, $password)
+
+Provide credentials to be used for HTTP Basic authentication for all sites and
+realms until further notice.  
+
+The four argument form described in L<LWP::UserAgent> is still supported.  
+
+=cut
+
+{
+    my $saved_method;
+
+    sub credentials
+    {
+        my $self = shift;
+       no warnings 'redefine';
+
+       if (@_ == 4) {
+           $saved_method
+                and *LWP::UserAgent::get_basic_credentials = $saved_method;
+           return $self->SUPER::credentials(@_);
+       }
+
+       @_ == 2
+            or $self->die( "Invalid # of args for overridden credentials()" );
+
+       my ($username, $password) = @_;
+       $saved_method ||= \&LWP::UserAgent::get_basic_credentials;
+       *LWP::UserAgent::get_basic_credentials
+            = sub { return $username, $password };
+    }
+}
+
+
 =head1 DEPRECATED METHODS
 
 This methods have been replaced by more flexible and precise methods.
@@ -1935,7 +1969,8 @@ sub _update_page {
         $self->{uri} = $self->{redirected_uri};
         $self->{last_uri} = $self->{uri};
     }
-    else {
+
+    if ( $res->is_error ) {
         if ( $self->{autocheck} ) {
             $self->die( "Error ", $request->method, "ing ", $request->uri, ": ", $res->message );
         }

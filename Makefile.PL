@@ -1,31 +1,28 @@
+package main;
+
 require 5.6.1;
+use strict;
+use warnings;
 use ExtUtils::MakeMaker qw( WriteMakefile prompt );
 use File::Spec;
 use Getopt::Long;
-use strict;
-use warnings;
 
 GetOptions(
-    'live!'         => \my $live,
     'local!'        => \my $local,
     'mech-dump!'    => \my $mechdump,
     'all'           => \my $all,
 );
 
 if ( $all ) {
-    $live = $local = $mechdump = 1;
+    $local = $mechdump = 1;
 }
 else {
-    if ( not defined $live ) {
-        $live = get_live();
-    }
     if ( not defined $local ) {
         $local = 1;
     }
 }
 
 my @tests = glob File::Spec->catfile( 't', '*.t' );
-push( @tests, glob File::Spec->catfile( 't', 'live', '*.t' ) ) if $live;
 push( @tests, glob File::Spec->catfile( 't', 'local', '*.t' ) ) if $local;
 push( @tests, glob File::Spec->catfile( 't', 'mech-dump', '*.t' ) ) if $mechdump;
 
@@ -54,12 +51,12 @@ my $parms = {
         'URI::URL'          => 0,
         'URI::file'         => 0,
     },
-    test            => { TESTS => join( " ", @tests ) },
+    test            => { TESTS => join( ' ', @tests ) },
     clean           => { FILES => 'WWW-Mechanize-*' },
 };
 
 if ( not defined $mechdump ) {
-    $mechdump = (prompt( "Do you want to install the mech-dump utility?", "y" ) =~ /^y/i );
+    $mechdump = (prompt( 'Do you want to install the mech-dump utility?', 'y' ) =~ /^y/i );
     print <<EOT;
 
 Note that you can skip this question with --mech-dump or --nomech-dump on the
@@ -107,46 +104,21 @@ EOT
 
 WriteMakefile( %$parms );
 
+sub MY::postamble {
+    return <<'MAKE_FRAG';
+.PHONY: tags critic
 
-sub get_live {
-    require IO::Socket;
-    my $s = IO::Socket::INET->new(
-        PeerAddr => "www.google.com:80",
-        Timeout  => 10,
-    );
-    if ($s) {
-        close($s);
+tags:
+	ctags -f tags --recurse --totals \
+		--exclude=blib \
+		--exclude=.svn \
+		--exclude='*~' \
+		--languages=Perl --langmap=Perl:+.t \
 
-        print <<EOT;
+critic:
+	perlcritic -1 .
 
-Part of WWW::Mechanize's test suite is run live tests against Google.
-These tests are a good way to make sure that Mechanize is ready to run
-in your environment, but they can also cause warnings if test sites have
-changed since the last update of Mechanize.  Skipping them won't hurt,
-but it might ignore problems.
-
-EOT
-    }
-    else {
-        print <<EOT;
-
-It seems that you are not directly connected to the Internet.  Some of the
-WWW::Mechanize tests interact with websites such as Google, in addition
-to its own internal tests.  If you are not connected to the Internet,
-these tests will probably fail.
-
-EOT
-
-    } # failed connect
-    my $dolive = (prompt("Do you want to enable these live tests?", "n") =~ /^y/i);
-
-    print <<EOT;
-
-Note that you can skip this question with --live or --nolive on the
-command line when you run Makefile.PL.
-
-EOT
-
-    return $dolive;
+MAKE_FRAG
 }
 
+1;
