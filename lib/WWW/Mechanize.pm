@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.20
+Version 1.21_01
 
 =cut
 
-our $VERSION = '1.20';
+our $VERSION = '1.21_01';
 
 =head1 SYNOPSIS
 
@@ -106,6 +106,11 @@ use URI::URL;
 use UNIVERSAL qw( isa );
 
 use base 'LWP::UserAgent';
+
+our $HAS_ZLIB;
+BEGIN {
+    $HAS_ZLIB = eval "use Compress::Zlib (); 1;";
+}
 
 =head1 CONSTRUCTOR AND STARTUP
 
@@ -295,10 +300,10 @@ sub known_agent_aliases {
 
 =head1 PAGE-FETCHING METHODS
 
-=head2 $mech->get( $url )
+=head2 $mech->get( $uri )
 
 Given a URL/URI, fetches it.  Returns an L<HTTP::Response> object.
-I<$url> can be a well-formed URL string, a L<URI> object, or a
+I<$uri> can be a well-formed URL string, a L<URI> object, or a
 L<WWW::Mechanize::Link> object.
 
 The results are stored internally in the agent object, but you don't
@@ -308,7 +313,7 @@ is deprecated and subject to change in the future.
 C<get()> is a well-behaved overloaded version of the method in
 L<LWP::UserAgent>.  This lets you do things like
 
-    $mech->get( $url, ":content_file"=>$tempfile );
+    $mech->get( $uri, ":content_file"=>$tempfile );
 
 and you can rest assured that the parms will get filtered down
 appropriately.
@@ -325,7 +330,41 @@ sub get {
             ? URI->new_abs( $uri, $self->base )
             : URI->new( $uri );
 
+    # It appears we are returning a super-class method,
+    # but it in turn calls the request() method here in Mechanize
     return $self->SUPER::get( $uri->as_string, @_ );
+}
+
+=head2 $mech->put( $uri, 'content' => $content )
+
+PUTs I<$content> to $uri.  Returns an L<HTTP::Response> object.
+I<$uri> can be a well-formed URI string, a L<URI> object, or a
+L<WWW::Mechanize::Link> object.
+
+=cut
+
+sub put {
+    my $self = shift;
+    my $uri = shift;
+
+    $uri = $uri->url if ref($uri) eq 'WWW::Mechanize::Link';
+
+    $uri = $self->base
+            ? URI->new_abs( $uri, $self->base )
+            : URI->new( $uri );
+
+    # It appears we are returning a super-class method,
+    # but it in turn calls the request() method here in Mechanize
+    return $self->_SUPER_put( $uri->as_string, @_ );
+}
+
+
+# Added until LWP::UserAgent has it.
+sub _SUPER_put {
+    require HTTP::Request::Common;
+    my($self, @parameters) = @_;
+    my @suff = $self->_process_colonic_headers(\@parameters,1);
+    return $self->request( HTTP::Request::Common::PUT( @parameters ), @suff );
 }
 
 =head2 $mech->reload()
@@ -1977,11 +2016,17 @@ sub _update_page {
     }
 
     $self->_reset_page;
+
+    # Try to decode the content. Undef will be returned if there's nothing to decompress.
+    # See docs in HTTP::Message for details. Do we need to expose the options there? 
+    my $content = $res->decoded_content; 
+       $content = $res->content if (not defined $content);  
+
     if ($self->is_html) {
-        $self->update_html($res->content);
+        $self->update_html($content);
     }
     else {
-        $self->{content} = $res->content;
+        $self->{content} = $content;
     }
 
     return $res;
@@ -1990,7 +2035,11 @@ sub _update_page {
 
 =head2 $mech->_modify_request( $req )
 
-Modifies the request according to all the internal header mangling.
+Modifies a L<HTTP::Request> before the request is sent out,
+for both GET and POST requests.
+
+We add a C<Referer> header, as well as header to note that we can accept gzip
+encoded content, if L<Compress::Gzip> is installed.
 
 =cut
 
@@ -2000,9 +2049,15 @@ sub _modify_request {
 
     # add correct Accept-Encoding header to restore compliance with
     # http://www.freesoft.org/CIE/RFC/2068/158.htm
-    unless ( $req->header( 'Accept-Encoding' ) ) {
-        # Only allow "identity" for the time being
-        $req->header( 'Accept-Encoding', 'identity' );
+    # http://use.perl.org/~rhesa/journal/25952
+    if (not $req->header( 'Accept-Encoding' ) ) {
+        if ($HAS_ZLIB) {
+            $req->header('Accept-Encoding', 'gzip');
+        }
+        # This means: "please! unencoded content only!"
+        else { 
+            $req->header( 'Accept-Encoding', 'identity' );
+        }
     }
 
     my $last = $self->{last_uri};
@@ -2335,11 +2390,6 @@ L<http://books.slashdot.org/article.pl?sid=03/12/11/2126256>
 
 =over 4
 
-=item * WWW::Mechanize Development mailing list
-
-Hosted at Sourceforge, this is where the contributors to Mech
-discuss things.  L<http://sourceforge.net/mail/?group_id=83309>
-
 =item * LWP mailing list
 
 The LWP mailing list is at
@@ -2347,6 +2397,11 @@ L<http://lists.perl.org/showlist.cgi?name=libwww>, and is more
 user-oriented and well-populated than the WWW::Mechanize Development
 list.  This is a good list for Mech users, since LWP is the basis
 for Mech.
+
+=item * WWW::Mechanize Development mailing list
+
+Hosted at Sourceforge, this is where the contributors to Mech
+discuss things.  L<http://sourceforge.net/mail/?group_id=83309>
 
 =item * L<WWW::Mechanize::Examples>
 
@@ -2358,6 +2413,10 @@ Mechanize distribution.
 =head1 ARTICLES ABOUT WWW::MECHANIZE
 
 =over 4
+
+=item * L<http://www-128.ibm.com/developerworks/linux/library/wa-perlsecure.html>
+
+IBM article "Secure Web site access with Perl"
 
 =item * L<http://www.oreilly.com/catalog/googlehks2/chapter/hack84.pdf>
 
