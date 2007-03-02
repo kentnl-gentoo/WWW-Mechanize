@@ -20,16 +20,16 @@ isa_ok( $mech, 'WWW::Mechanize', 'Created the object' ) or die;
 my $response = $mech->get( $server->url );
 isa_ok( $response, 'HTTP::Response', 'Got back a response' ) or die;
 is( $mech->uri, $server->url, "Got the correct page" );
-ok( $response->is_success, 'Got local page' ) or die "Can't even fetch local page";
+ok( $response->is_success, 'Got local page' ) or die 'cannot even fetch local page';
 ok( $mech->is_html );
 
-is( $mech->value('upload'), '', "Hopefully no upload happens");
+is( $mech->value('upload'), '', 'Hopefully no upload happens');
 
-$mech->field(query => "foo"); # Filled the "q" field
+$mech->field(query => 'foo'); # Filled the 'q' field
 
 $response = $mech->submit;
 isa_ok( $response, 'HTTP::Response', 'Got back a response' );
-ok( $response->is_success, "Can click 'submit' ('submit' button)");
+ok( $response->is_success, 'Can click "submit" ("submit" button)');
 
 like($mech->content, qr/\bfoo\b/i, 'Found "Foo"');
 
