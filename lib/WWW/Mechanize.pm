@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.22
+Version 1.24
 
 =cut
 
-our $VERSION = '1.22';
+our $VERSION = '1.24';
 
 =head1 SYNOPSIS
 
@@ -118,20 +118,20 @@ BEGIN {
 =head2 new()
 
 Creates and returns a new WWW::Mechanize object, hereafter referred to as
-the 'agent'.
+the "agent".
 
     my $mech = WWW::Mechanize->new()
 
 The constructor for WWW::Mechanize overrides two of the parms to the
 LWP::UserAgent constructor:
 
-    agent => "WWW-Mechanize/#.##"
+    agent => 'WWW-Mechanize/#.##'
     cookie_jar => {}    # an empty, memory-only HTTP::Cookies object
 
 You can override these overrides by passing parms to the constructor,
 as in:
 
-    my $mech = WWW::Mechanize->new( agent=>"wonderbot 1.01" );
+    my $mech = WWW::Mechanize->new( agent => 'wonderbot 1.01' );
 
 If you want none of the overhead of a cookie jar, or don't want your
 bot accepting cookies, you have to explicitly disallow it, like so:
@@ -173,7 +173,7 @@ installed, or C<CORE::die> if not.
 =item * C<< quiet => [0|1] >>
 
 Don't complain on warnings.  Setting C<< quiet => 1 >> is the same as
-calling C<< $agent->quiet(1) >>.  Default is off.
+calling C<< $mech->quiet(1) >>.  Default is off.
 
 =item * C<< stack_depth => $value >>
 
@@ -314,7 +314,7 @@ is deprecated and subject to change in the future.
 C<get()> is a well-behaved overloaded version of the method in
 L<LWP::UserAgent>.  This lets you do things like
 
-    $mech->get( $uri, ":content_file"=>$tempfile );
+    $mech->get( $uri, ':content_file' => $tempfile );
 
 and you can rest assured that the parms will get filtered down
 appropriately.
@@ -449,8 +449,7 @@ objects.
 
 =head2 $mech->current_form()
 
-Returns the current form as an L<HTML::Form> object.  I'd call this
-C<form()> except that C<L<form()>> used to exist to set the current_form.
+Returns the current form as an L<HTML::Form> object.
 
 =head2 $mech->links()
 
@@ -508,7 +507,7 @@ are passed to I<content()>:
 
 =over 2
 
-=item I<< $mech->content( format => "text" ) >>
+=item I<< $mech->content( format => 'text' ) >>
 
 Returns a text-only version of the page, with all HTML markup
 stripped. This feature requires I<HTML::TreeBuilder> to be installed,
@@ -592,7 +591,7 @@ Here some examples:
 
 =item * 3rd link called "download"
 
-    $mech->follow_link( text => "download", n => 3 );
+    $mech->follow_link( text => 'download', n => 3 );
 
 =item * first link where the URL has "download" in it, regardless of case:
 
@@ -628,7 +627,7 @@ sub follow_link {
     return;
 }
 
-=head2 $mech->find_link()
+=head2 $mech->find_link( ... )
 
 Finds a link in the currently fetched page. It returns a
 L<WWW::Mechanize::Link> object which describes the link.  (You'll
@@ -652,7 +651,7 @@ key/value pairs:
 C<text> matches the text of the link against I<string>, which must be an
 exact match.  To select a link with text that is exactly "download", use
 
-    $mech->find_link( text => "download" );
+    $mech->find_link( text => 'download' );
 
 C<text_regex> matches the text of the link against I<regex>.  To select a
 link with text that has "download" anywhere in it, regardless of case, use
@@ -700,7 +699,7 @@ Note that you can specify multiple text or URL parameters, which
 will be ANDed together.  For example, to find the first link with
 text of "News" and with "cnn.com" in the URL, use:
 
-    $mech->find_link( text => "News", url_regex => qr/cnn\.com/ );
+    $mech->find_link( text => 'News', url_regex => qr/cnn\.com/ );
 
 The return value is a reference to an array containing a
 L<WWW::Mechanize::Link> object for every link in C<< $self->content >>.
@@ -839,6 +838,77 @@ sub find_all_links {
     return $self->find_link( @_, n=>'all' );
 }
 
+=head2 find_all_inputs( ... criteria ... )
+
+find_all_inputs() returns an array of all the input controls in the
+current form whose properties match all of the regexes passed in.
+The controls returned are all descended from HTML::Form::Input.
+
+If no criteria are passed, all inputs will be returned.
+
+If there is no current page, there is no form on the current
+page, or there are no submit controls in the current form
+then the return will be an empty array.
+
+You may use a regex or a literal string:
+
+    # get all textarea controls whose names begin with "customer"
+    my @customer_text_inputs =
+        $mech->find_all_inputs( {
+            type       => 'textarea',
+            name_regex => qr/^customer/,
+        }
+    );
+
+    # get all text or textarea controls called "customer"
+    my @customer_text_inputs =
+        $mech->find_all_inputs( {
+            type_regex => qr/^(text|textarea)$/,
+            name       => 'customer',
+        }
+    );
+
+=cut
+
+sub find_all_inputs {
+    my $self = shift;
+    my %criteria = @_;
+
+    my $form = $self->current_form() or return;
+
+    my @found;
+    foreach my $input ( $form->inputs ) { # check every pattern for a match on the current hash
+        my $matched = 1;
+        foreach my $criterion ( sort keys %criteria ) { # Sort so we're deterministic
+            my $field = $criterion;
+            my $is_regex = ( $field =~ s/(?:_regex)$// );
+            my $what = $input->{$field};
+            $matched = defined($what) && (
+                $is_regex
+                    ? ( $what =~ $criteria{$criterion} )
+                    : ( $what eq $criteria{$criterion} )
+                );
+            last if !$matched;
+        }
+        push @found, $input if $matched;
+    }
+    return @found;
+}
+
+=head2 $mech->find_all_submits( ... criteria ... )
+
+C<find_all_submits()> does the same thing as C<find_all_inputs()>
+except that it only returns controls that are submit controls,
+ignoring other types of input controls like text and checkboxes.
+
+=cut
+
+sub find_all_submits {
+    my $self = shift;
+
+    return $self->find_all_inputs( @_, type_regex => qr/^(submit|image)$/ );
+}
+
 
 =head1 IMAGE METHODS
 
@@ -875,7 +945,7 @@ key/value pairs:
 C<alt> matches the ALT attribute of the image against I<string>, which must be an
 exact match. To select a image with an ALT tag that is exactly "download", use
 
-    $mech->find_image( alt  => "download" );
+    $mech->find_image( alt => 'download' );
 
 C<alt_regex> matches the ALT attribute of the image  against a regular
 expression.  To select an image with an ALT attribute that has "download"
@@ -915,7 +985,7 @@ Note that you can specify multiple ALT or URL parameters, which
 will be ANDed together.  For example, to find the first image with
 ALT text of "News" and with "cnn.com" in the URL, use:
 
-    $mech->find_image( image => "News", url_regex => qr/cnn\.com/ );
+    $mech->find_image( image => 'News', url_regex => qr/cnn\.com/ );
 
 The return value is a reference to an array containing a
 L<WWW::Mechanize::Image> object for every image in C<< $self->content >>.
@@ -1016,12 +1086,12 @@ sub forms {
 
 Selects the I<number>th form on the page as the target for subsequent
 calls to C<L<field()>> and C<L<click()>>.  Also returns the form that was
-selected.  
+selected.
 
-If it is found, the form is returned as an L<HTML::Form> object and set internally  
+If it is found, the form is returned as an L<HTML::Form> object and set internally
 for later used with Mech's form methods such as C<L<field()>> and C<L<click()>>.
 
-Emits a warning and returns undef if no form is found. 
+Emits a warning and returns undef if no form is found.
 
 The first form is number 1, not zero.
 
@@ -1041,16 +1111,16 @@ sub form_number {
     }
 }
 
-=head2 $mech->form_name($name)
+=head2 $mech->form_name( $name )
 
 Selects a form by name.  If there is more than one form on the page
 with that name, then the first one is used, and a warning is
-generated.  
+generated.
 
-If it is found, the form is returned as an L<HTML::Form> object and set internally  
+If it is found, the form is returned as an L<HTML::Form> object and set internally
 for later used with Mech's form methods such as C<L<field()>> and C<L<click()>>.
 
-Returns undef if no form is found. 
+Returns undef if no form is found.
 
 Note that this functionality requires libwww-perl 5.69 or higher.
 
@@ -1072,7 +1142,7 @@ sub form_name {
     }
 }
 
-=head2 $mech->form_with_fields(@fields)
+=head2 $mech->form_with_fields( @fields )
 
 Selects a form by passing in a list of field names it must contain.  If there
 is more than one form on the page with that matches, then the first one is used,
@@ -1290,11 +1360,11 @@ you to specify the I<type> of input field you want to set and is
 denoted with an arrayref containing two elements.  So you could
 specify the first radio button with
 
-    $mech->set_visible( [ radio => "KCRW" ] ) ;
+    $mech->set_visible( [ radio => 'KCRW' ] ) ;
 
 Field values and specifiers can be intermixed, hence
 
-    $mech->set_visible( "fred", "secret", [ option => "Checking" ] ) ;
+    $mech->set_visible( 'fred', 'secret', [ option => 'Checking' ] ) ;
 
 would set the first two fields to "fred" and "secret", and the I<next>
 C<OPTION> menu field to "Checking".
@@ -1302,7 +1372,7 @@ C<OPTION> menu field to "Checking".
 The possible field specifier types are: "text", "password", "hidden",
 "textarea", "file", "image", "submit", "radio", "checkbox" and "option".
 
-C<set_visible> returns the number of values set. 
+C<set_visible> returns the number of values set.
 
 =cut
 
@@ -1342,7 +1412,7 @@ sub set_visible {
 
 =head2 $mech->tick( $name, $value [, $set] )
 
-'Ticks' the first checkbox that has both the name and value associated
+"Ticks" the first checkbox that has both the name and value associated
 with it on the current form.  Dies if there is no named check box for
 that value.  Passing in a false value as the third optional argument
 will cause the checkbox to be unticked.
@@ -1462,11 +1532,12 @@ Clicks the button with the value I<value> in the current form.
 Clicks on the button referenced by $inputobject, an instance of
 L<HTML::Form::SubmitInput> obtained e.g. from
 
-  $mech->current_form()->find_input(undef, "submit")
+    $mech->current_form()->find_input( undef, 'submit' )
 
 $inputobject must belong to the current form.
 
 =item * x => x
+
 =item * y => y
 
 These arguments (optional) allow you to specify the (x,y) coordinates
@@ -1521,7 +1592,7 @@ sub click_button {
 Submits the page, without specifying a button to click.  Actually,
 no button is clicked at all.
 
-This used to be a synonym for C<< $mech->click("submit") >>, but is no
+This used to be a synonym for C<< $mech->click( 'submit' ) >>, but is no
 longer so.
 
 =cut
@@ -1547,7 +1618,7 @@ are a list of key/value pairs, all of which are optional.
 Probably all you need for the common case. It combines a smart form selector
 and data setting in one operation. It selects the first form that contains all
 fields mentioned in C<\%fields>.  This is nice because you don't need to know
-the name or number of the form to do this. 
+the name or number of the form to do this.
 (calls C<L<form_with_fields>> and C<L<set_fields()>>).
 
 If you choose this, the form_number, form_name and fields options will be ignored.
@@ -1560,10 +1631,6 @@ specified, the currently-selected form is used.
 =item * form_name => name
 
 Selects the form named I<name> (calls C<L<form_name()>>)
-
-=item * fields => \%fields
-
-Sets the field values from the I<fields> hashref (calls C<L<set_fields()>>).
 
 =item * button => button
 
@@ -1588,7 +1655,7 @@ sub submit_form {
 
     for ( keys %args ) {
         if ( !/^(form_(number|name|fields)|(with_)?fields|button|x|y)$/ ) {
-            # XXX Why not die here?  
+            # XXX Why not die here?
             $self->warn( qq{Unknown submit_form parameter "$_"} );
         }
     }
@@ -1617,7 +1684,7 @@ sub submit_form {
         $self->form_name( $form_name ) or die;
     }
     else {
-        # No form selector was used. 
+        # No form selector was used.
         # Maybe a form was set separately, or we'll default to the first form.
     }
 
@@ -1675,7 +1742,8 @@ sub add_header {
 
 =head2 $mech->delete_header( name [, name ... ] )
 
-Removes HTTP headers from the agent's list of special headers.  For instance, you might need to do something like:
+Removes HTTP headers from the agent's list of special headers.  For
+instance, you might need to do something like:
 
     # Don't send a Referer for this URL
     $mech->add_header( Referer => undef );
@@ -1696,6 +1764,8 @@ sub delete_header {
 
         delete $self->{headers}{$key};
     }
+
+    return;
 }
 
 
@@ -1736,7 +1806,7 @@ sub stack_depth {
 =head2 $mech->save_content( $filename )
 
 Dumps the contents of C<< $mech->content >> into I<$filename>.
-I<$filename> will be overwritten.
+I<$filename> will be overwritten.  Dies if there are any errors.
 
 =cut
 
@@ -1745,18 +1815,18 @@ sub save_content {
     my $filename = shift;
 
     open( my $fh, '>', $filename ) or $self->die( "Unable to create $filename: $!" );
-    print {$fh} $self->content;
-    close $fh;
+    print {$fh} $self->content or $self->die( "Unable to write to $filename: $!" );
+    close $fh or $self->die( "Unable to close $filename: $!" );
 }
 
 =head1 OVERRIDDEN LWP::UserAgent METHODS
 
 =head2 $mech->clone()
 
-Clone the mech object. We override here to be sure 
-the cookie jar gets copied over
+Clone the mech object. We override here to be sure the cookie jar
+gets copied over
 
-=cut 
+=cut
 
 sub clone {
     my $self = shift;
@@ -1873,10 +1943,10 @@ sub update_html {
     return;
 }
 
-=head2 $mech->credentials($username, $password)
+=head2 $mech->credentials( $username, $password )
 
 Provide credentials to be used for HTTP Basic authentication for all sites and
-realms until further notice.  
+realms until further notice.
 
 The four argument form described in L<LWP::UserAgent> is still supported.
 
@@ -1944,16 +2014,11 @@ sub _update_page {
 
     $self->_reset_page;
 
-    # Try to decode the content. Undef will be returned if there's nothing to decompress.
-    # See docs in HTTP::Message for details. Do we need to expose the options there? 
-    my $content = $res->decoded_content;
-       $content = $res->content if (not defined $content);
-
     if ($self->is_html) {
-        $self->update_html($content);
+        $self->update_html($res->content);
     }
     else {
-        $self->{content} = $content;
+        $self->{content} = $res->content;
     }
 
     return $res;
@@ -2148,6 +2213,7 @@ sub _link_from_token {
 
         if ( $content =~ /^\d+\s*;\s*url\s*=\s*(\S+)/i ) {
             $url = $1;
+            $url =~ s/^"(.+)"$/$1/ or $url =~ s/^'(.+)'$/$1/;
         }
         else {
             undef $url;
@@ -2258,13 +2324,13 @@ sub die {
 # NOT an object method!
 sub _warn {
     require Carp;
-    &Carp::carp; ## no critic
+    return &Carp::carp; ## no critic
 }
 
 # NOT an object method!
 sub _die {
     require Carp;
-    &Carp::croak; ## no critic
+    return &Carp::croak; ## no critic
 }
 
 1; # End of module
@@ -2306,7 +2372,7 @@ There are six hacks that use Mech or a Mech derivative:
 The book was also positively reviewed on Slashdot:
 L<http://books.slashdot.org/article.pl?sid=03/12/11/2126256>
 
-=head1 ONLINE RESOURCES
+=head1 ONLINE RESOURCES AND SUPPORT
 
 =over 4
 
@@ -2318,10 +2384,10 @@ user-oriented and well-populated than the WWW::Mechanize Development
 list.  This is a good list for Mech users, since LWP is the basis
 for Mech.
 
-=item * WWW::Mechanize Development mailing list
+=item * Perlmonks
 
-Hosted at Sourceforge, this is where the contributors to Mech
-discuss things.  L<http://sourceforge.net/mail/?group_id=83309>
+L<http://perlmonks.org> is an excellent community of support, and
+many questions about Mech have already been answered there.
 
 =item * L<WWW::Mechanize::Examples>
 
@@ -2430,11 +2496,17 @@ track things.
 L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=WWW-Mechanize> is the RT queue
 for Mechanize.  Please check to see if your bug has already been reported.
 
+Please note that this is NOT for support requests.  Please be sure
+to read the FAQ if you have support requests.
+
 =head1 ACKNOWLEDGEMENTS
 
 Thanks to the numerous people who have helped out on WWW::Mechanize in
 one way or another, including
 Kirrily Robert for the orignal C<WWW::Automate>,
+
+David Steinbrunner,
+Kevin Falcone,
 Mike O'Regan,
 Mark Stosberg,
 Uri Guttman,
@@ -2469,7 +2541,7 @@ and the late great Iain Truskett.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2006 Andy Lester. All rights reserved. This program is
+Copyright (c) 2005-2007 Andy Lester. All rights reserved. This program is
 free software; you can redistribute it and/or modify it under the same
 terms as Perl itself.
 
