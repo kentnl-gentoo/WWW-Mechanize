@@ -1,11 +1,10 @@
---- #YAML:1.0
-name:                WWW-Mechanize
-version:             1.24
-abstract:            Handy web browsing in a Perl object
-license:             ~
-generated_by:        ExtUtils::MakeMaker version 6.32
-distribution_type:   module
-requires:     
+# http://module-build.sourceforge.net/META-spec.html
+#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
+name:         WWW-Mechanize
+version:      1.26
+version_from: lib/WWW/Mechanize.pm
+installdirs:  site
+requires:
     Carp:                          0
     File::Temp:                    0
     FindBin:                       0
@@ -24,8 +23,6 @@ requires:
     URI:                           1.25
     URI::file:                     0
     URI::URL:                      0
-meta-spec:
-    url:     http://module-build.sourceforge.net/META-spec-v1.2.html
-    version: 1.2
-author:
-    - Andy Lester <andy@petdance.com>
+
+distribution_type: module
+generated_by: ExtUtils::MakeMaker version 6.30

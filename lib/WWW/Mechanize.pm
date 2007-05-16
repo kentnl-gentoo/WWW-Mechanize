@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.24
+Version 1.26
 
 =cut
 
-our $VERSION = '1.24';
+our $VERSION = '1.26';
 
 =head1 SYNOPSIS
 
@@ -2014,15 +2014,35 @@ sub _update_page {
 
     $self->_reset_page;
 
+    # Try to decode the content. Undef will be returned if there's nothing to decompress.
+    # See docs in HTTP::Message for details. Do we need to expose the options there? 
+    my $content = $res->decoded_content;
+    $content = $res->content if (not defined $content);
+
+    $content .= _taintedness();
+
     if ($self->is_html) {
-        $self->update_html($res->content);
+        $self->update_html($content);
     }
     else {
-        $self->{content} = $res->content;
+        $self->{content} = $content;
     }
 
     return $res;
 } # _update_page
+
+our $_taintbrush;
+sub _taintedness {
+    if ( not defined $_taintbrush ) {
+        my $file = $0;
+        open( my $fh, '<', $file ) or die "Can't open $file: $!";
+        sysread( $fh, $_taintbrush, 1 ) or die "Can't read from $file: $!";
+        $_taintbrush = substr( $_taintbrush, 0, 0 );
+        close $fh;
+    }
+
+    return $_taintbrush;
+}
 
 
 =head2 $mech->_modify_request( $req )
@@ -2504,7 +2524,7 @@ to read the FAQ if you have support requests.
 Thanks to the numerous people who have helped out on WWW::Mechanize in
 one way or another, including
 Kirrily Robert for the orignal C<WWW::Automate>,
-
+Rafael Kitover,
 David Steinbrunner,
 Kevin Falcone,
 Mike O'Regan,
