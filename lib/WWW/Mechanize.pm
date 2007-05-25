@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.29_01
+Version 1.30
 
 =cut
 
-our $VERSION = '1.29_01';
+our $VERSION = '1.30';
 
 =head1 SYNOPSIS
 
@@ -263,7 +263,23 @@ sets your User-Agent to
 
     Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)
 
-The list of valid aliases can be returned from C<known_agent_aliases()>.
+The list of valid aliases can be returned from C<known_agent_aliases()>.  The current list is:
+
+=over
+
+=item * Windows IE 6
+
+=item * Windows Mozilla
+
+=item * Mac Safari
+
+=item * Mac Mozilla
+
+=item * Linux Mozilla
+
+=item * Linux Konqueror
+
+=back
 
 =cut
 
@@ -336,7 +352,7 @@ sub get {
     return $self->SUPER::get( $uri->as_string, @_ );
 }
 
-=head2 $mech->put( $uri, 'content' => $content )
+=head2 $mech->put( $uri, content => $content )
 
 PUTs I<$content> to $uri.  Returns an L<HTTP::Response> object.
 I<$uri> can be a well-formed URI string, a L<URI> object, or a
@@ -838,7 +854,7 @@ sub find_all_links {
     return $self->find_link( @_, n=>'all' );
 }
 
-=head2 find_all_inputs( ... criteria ... )
+=head2 $mech->find_all_inputs( ... criteria ... )
 
 find_all_inputs() returns an array of all the input controls in the
 current form whose properties match all of the regexes passed in.
