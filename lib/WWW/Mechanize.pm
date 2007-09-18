@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.30
+Version 1.31_01
 
 =cut
 
-our $VERSION = '1.30';
+our $VERSION = '1.31_01';
 
 =head1 SYNOPSIS
 
@@ -57,7 +57,7 @@ traverse.
 
     $mech->back();
 
-If you want finer control over over your page fetching, you can use
+If you want finer control over your page fetching, you can use
 these methods. C<follow_link> and C<submit_form> are just high
 level wrappers around them.
 
@@ -177,7 +177,7 @@ calling C<< $mech->quiet(1) >>.  Default is off.
 
 =item * C<< stack_depth => $value >>
 
-Sets the depth of the page stack that keeps tracks of all the downloaded
+Sets the depth of the page stack that keeps track of all the downloaded
 pages. Default is 0 (infinite). If the stack is eating up your memory,
 then set it to 1.
 
@@ -198,7 +198,7 @@ sub new {
         onwarn      => \&WWW::Mechanize::_warn,
         onerror     => \&WWW::Mechanize::_die,
         quiet       => 0,
-        stack_depth => 867_5309,    # Arbitrarily humungous stack
+        stack_depth => 8675309,     # Arbitrarily humongous stack
         headers     => {},
     );
 
@@ -553,7 +553,7 @@ sub content {
         my %parms = @_;
         if ( exists $parms{base_href} ) {
             my $arg = (delete $parms{base_href}) || $self->base;
-            $content=~s/<head>/<head>\n<base href="$arg">/;
+            $content=~s/<head>/<head>\n<base href="$arg">/i;
         }
         if ( my $arg = delete $parms{format} ) {
             if ($arg eq 'text') {
@@ -951,7 +951,7 @@ Finds an image in the current page. It returns a
 L<WWW::Mechanize::Image> object which describes the image.  If it fails
 to find an image it returns undef.
 
-You can select which link to find by passing in one or more of these
+You can select which image to find by passing in one or more of these
 key/value pairs:
 
 =over 4
@@ -1105,7 +1105,7 @@ calls to C<L<field()>> and C<L<click()>>.  Also returns the form that was
 selected.
 
 If it is found, the form is returned as an L<HTML::Form> object and set internally
-for later used with Mech's form methods such as C<L<field()>> and C<L<click()>>.
+for later use with Mech's form methods such as C<L<field()>> and C<L<click()>>.
 
 Emits a warning and returns undef if no form is found.
 
@@ -1134,7 +1134,7 @@ with that name, then the first one is used, and a warning is
 generated.
 
 If it is found, the form is returned as an L<HTML::Form> object and set internally
-for later used with Mech's form methods such as C<L<field()>> and C<L<click()>>.
+for later use with Mech's form methods such as C<L<field()>> and C<L<click()>>.
 
 Returns undef if no form is found.
 
@@ -2412,9 +2412,9 @@ __END__
 
 =head1 WWW::MECHANIZE'S SUBVERSION REPOSITORY
 
-Mech is hosted by the kind generosity of Ask and Robert,
-maintainers of perl.org.  The Subversion repository is at
-L<http://svn.perl.org/modules/www-mechanize>.
+Mech and Test::WWW::Mechanize are both hosted at Google Code:
+http://code.google.com/p/www-mechanize/.  The Subversion repository
+is at http://www-mechanize.googlecode.com/svn/wm/.
 
 =head1 OTHER DOCUMENTATION
 
@@ -2563,8 +2563,8 @@ Just like Mech, but using Microsoft Internet Explorer to do the work.
 
 Please report any requests, suggestions or (gasp!) bugs via the
 excellent RT bug-tracking system at http://rt.cpan.org/, or email to
-bug-WWW-Mechanize@rt.cpan.org.  This makes it much easier for me to
-track things.
+C<bug-WWW-Mechanize at rt.cpan.org>.  This makes it much easier for
+me to track things.
 
 L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=WWW-Mechanize> is the RT queue
 for Mechanize.  Please check to see if your bug has already been reported.
@@ -2576,7 +2576,8 @@ to read the FAQ if you have support requests.
 
 Thanks to the numerous people who have helped out on WWW::Mechanize in
 one way or another, including
-Kirrily Robert for the orignal C<WWW::Automate>,
+Kirrily Robert for the original C<WWW::Automate>,
+Miyagawa,
 Peteris Krumins,
 Rafael Kitover,
 David Steinbrunner,
@@ -2611,6 +2612,7 @@ Julien Beasley,
 Abe Timmerman,
 Peter Stevens,
 Pete Krawczyk,
+Tad McClellan,
 and the late great Iain Truskett.
 
 =head1 COPYRIGHT
