@@ -1,9 +1,9 @@
 --- #YAML:1.0
 name:                WWW-Mechanize
-version:             1.31_02
+version:             1.32
 abstract:            Handy web browsing in a Perl object
 license:             ~
-generated_by:        ExtUtils::MakeMaker version 6.32
+generated_by:        ExtUtils::MakeMaker version 6.36
 distribution_type:   module
 requires:     
     Carp:                          0

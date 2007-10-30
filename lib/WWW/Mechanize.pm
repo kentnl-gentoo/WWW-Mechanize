@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.31_02
+Version 1.32
 
 =cut
 
-our $VERSION = '1.31_02';
+our $VERSION = '1.32';
 
 =head1 SYNOPSIS
 
@@ -81,6 +81,12 @@ FAQ in WWW::Mechanize::FAQ for more.
 
 =over 4
 
+=item * L<http://code.google.com/p/www-mechanize/issues/list>
+
+The queue for bugs & enhancements in WWW::Mechanize and
+Test::WWW::Mechanize.  Please note that the queue at L<http://rt.cpan.org>
+is no longer maintained.
+
 =item * L<http://search.cpan.org/dist/WWW-Mechanize/>
 
 The CPAN documentation page for Mechanize.
@@ -88,11 +94,6 @@ The CPAN documentation page for Mechanize.
 =item * L<http://search.cpan.org/dist/WWW-Mechanize/lib/WWW/Mechanize/FAQ.pod>
 
 Frequently asked questions.  Make sure you read here FIRST.
-
-=item * L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=WWW-Mechanize>
-
-The RT queue for bugs & enhancements in Mechanize.  Click the "Report bug"
-link if your bug isn't already reported.
 
 =back
 
@@ -1856,6 +1857,89 @@ sub save_content {
 
     return;
 }
+
+=head2 $mech->dump_links( [[$fh], $absolute] )
+
+Prints a dump of the links on the current page to I<$fh>.  If I<$fh>
+is not specified or is undef, it dumps to STDOUT.
+
+If I<$absolute> is true, links displayed are absolute, not relative.
+
+=cut
+
+sub dump_links {
+    my $self = shift;
+    my $fh = shift || \*STDOUT;
+    my $absolute = shift;
+
+    for my $link ( $self->links ) {
+        my $url = $absolute ? $link->url_abs : $link->url;
+        $url = '' if not defined $url;
+        print {$fh} $url, "\n";
+    }
+    return;
+}
+
+=head2 $mech->dump_images( [[$fh], $absolute] )
+
+Prints a dump of the images on the current page to I<$fh>.  If I<$fh>
+is not specified or is undef, it dumps to STDOUT.
+
+If I<$absolute> is true, links displayed are absolute, not relative.
+
+=cut
+
+sub dump_images {
+    my $self = shift;
+    my $fh = shift || \*STDOUT;
+    my $absolute = shift;
+
+    for my $image ( $self->images ) {
+        my $url = $absolute ? $image->url_abs : $image->url;
+        $url = '' if not defined $url;
+        print {$fh} $url, "\n";
+    }
+    return;
+}
+
+=head2 $mech->dump_forms( [$fh] )
+
+Prints a dump of the forms on the current page to I<$fh>.  If I<$fh>
+is not specified or is undef, it dumps to STDOUT.
+
+=cut
+
+sub dump_forms {
+    my $self = shift;
+    my $fh = shift || \*STDOUT;
+
+    for my $form ( $self->forms ) {
+        print {$fh} $form->dump, "\n";
+    }
+    return;
+}
+
+=head2 $mech->dump_all( [[$fh], $absolute] )
+
+Prints a dump of all links, images and forms on the current page to
+I<$fh>.  If I<$fh> is not specified or is undef, it dumps to STDOUT.
+
+If I<$absolute> is true, links displayed are absolute, not relative.
+
+=cut
+
+sub dump_all {
+    my $self = shift;
+    my $fh = shift || \*STDOUT;
+    my $absolute = shift;
+
+    $self->dump_links( $fh, $absolute );
+    $self->dump_images( $fh, $absolute );
+    $self->dump_forms( $fh, $absolute );
+
+    return;
+}
+
 
 =head1 OVERRIDDEN LWP::UserAgent METHODS
 
