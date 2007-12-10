@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.32
+Version 1.34
 
 =cut
 
-our $VERSION = '1.32';
+our $VERSION = '1.34';
 
 =head1 SYNOPSIS
 
@@ -325,8 +325,8 @@ I<$uri> can be a well-formed URL string, a L<URI> object, or a
 L<WWW::Mechanize::Link> object.
 
 The results are stored internally in the agent object, but you don't
-know that.  Just use the accessors listed below.  Poking at the internals
-is deprecated and subject to change in the future.
+know that.  Just use the accessors listed below.  Poking at the
+internals is deprecated and subject to change in the future.
 
 C<get()> is a well-behaved overloaded version of the method in
 L<LWP::UserAgent>.  This lets you do things like
@@ -335,6 +335,10 @@ L<LWP::UserAgent>.  This lets you do things like
 
 and you can rest assured that the parms will get filtered down
 appropriately.
+
+B<NOTE:> Because C<:content_file> causes the page contents to be
+stored in a file instead of the response object, some Mech functions
+that expect it to be there won't work as expected. Use with caution.
 
 =cut
 
@@ -1624,6 +1628,8 @@ sub click_button {
 Submits the page, without specifying a button to click.  Actually,
 no button is clicked at all.
 
+Returns an L<HTTP::Response> object.
+
 This used to be a synonym for C<< $mech->click( 'submit' ) >>, but is no
 longer so.
 
@@ -2513,6 +2519,12 @@ sub _die {
 
 __END__
 
+=head1 REQUESTS & BUGS
+
+The bug queue for WWW::Mechanize and Test::WWW::Mechanize is at
+L<http://code.google.com/p/www-mechanize/issues/list>.  Please do
+not add any tickets to the old queue at L<http://rt.cpan.org/>.
+
 =head1 WWW::MECHANIZE'S SUBVERSION REPOSITORY
 
 Mech and Test::WWW::Mechanize are both hosted at Google Code:
@@ -2552,13 +2564,18 @@ L<http://books.slashdot.org/article.pl?sid=03/12/11/2126256>
 
 =over 4
 
+=item * WWW::Mechanize mailing list
+
+The Mech mailing list is at
+L<http://groups.google.com/group/www-mechanize-users> and is specific
+to Mechanize, unlike the LWP mailing list below.  Although it is a
+users list, all development discussion takes place here, too.
+
 =item * LWP mailing list
 
 The LWP mailing list is at
 L<http://lists.perl.org/showlist.cgi?name=libwww>, and is more
-user-oriented and well-populated than the WWW::Mechanize Development
-list.  This is a good list for Mech users, since LWP is the basis
-for Mech.
+user-oriented and well-populated than the WWW::Mechanize list.
 
 =item * Perlmonks
 
@@ -2661,19 +2678,6 @@ Just like Mech, but using Microsoft Internet Explorer to do the work.
 =item * L<WWW::Yahoo::Groups>
 
 =back
-
-=head1 REQUESTS & BUGS
-
-Please report any requests, suggestions or (gasp!) bugs via the
-excellent RT bug-tracking system at http://rt.cpan.org/, or email to
-C<bug-WWW-Mechanize at rt.cpan.org>.  This makes it much easier for
-me to track things.
-
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=WWW-Mechanize> is the RT queue
-for Mechanize.  Please check to see if your bug has already been reported.
-
-Please note that this is NOT for support requests.  Please be sure
-to read the FAQ if you have support requests.
 
 =head1 ACKNOWLEDGEMENTS
 

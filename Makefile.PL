@@ -1,6 +1,7 @@
 package main;
 
-require 5.6.1;
+require 5.006001;
+
 use strict;
 use warnings;
 use ExtUtils::MakeMaker qw( WriteMakefile );
@@ -50,6 +51,18 @@ my $parms = {
     test            => { TESTS => join( ' ', @tests ) },
     clean           => { FILES => 'WWW-Mechanize-*' },
 };
+
+if ( $ExtUtils::MakeMaker::VERSION eq '6.36' ) {
+    $parms->{EXTRA_META} = <<EOF;
+resources:
+    license: http://dev.perl.org/licenses/
+    homepage: http://code.google.com/p/www-mechanize/
+    bugtracker: http://code.google.com/p/www-mechanize/issues/list
+    Repository: http://code.google.com/p/www-mechanize/source
+    MailingList: http://groups.google.com/group/www-mechanize-users
+EOF
+    }
+
 
 eval { require LWP; };
 if (!$@) {
