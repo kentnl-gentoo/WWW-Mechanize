@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.51_01
+Version 1.51_02
 
 =cut
 
-our $VERSION = '1.51_01';
+our $VERSION = '1.51_02';
 
 =head1 SYNOPSIS
 
@@ -795,15 +795,17 @@ The links come from the following:
 
 =over 4
 
-=item C<< <A HREF=...> >>
+=item C<< <a href=...> >>
 
-=item C<< <AREA HREF=...> >>
+=item C<< <area href=...> >>
 
-=item C<< <FRAME SRC=...> >>
+=item C<< <frame src=...> >>
 
-=item C<< <IFRAME SRC=...> >>
+=item C<< <iframe src=...> >>
 
-=item C<< <META CONTENT=...> >>
+=item C<< <link href=...> >>
+
+=item C<< <meta content=...> >>
 
 =back
 
@@ -2133,36 +2135,52 @@ sub update_html {
 
 =head2 $mech->credentials( $username, $password )
 
-Provide credentials to be used for HTTP Basic authentication for all sites and
-realms until further notice.
+Provide credentials to be used for HTTP Basic authentication for
+all sites and realms until further notice.
 
-The four argument form described in L<LWP::UserAgent> is still supported.
+The four argument form described in L<LWP::UserAgent> is still
+supported.
 
 =cut
 
-{
-    my $saved_method;
+sub credentials {
+    my $self = shift;
 
-    sub credentials {
-        my $self = shift;
-        no warnings 'redefine'; ## no critic
-
-        if (@_ == 4) {
-            $saved_method
-                and *LWP::UserAgent::get_basic_credentials = $saved_method;
-            return $self->SUPER::credentials(@_);
-        }
-
-        @_ == 2
-            or $self->die( 'Invalid # of args for overridden credentials()' );
-
-        my ($username, $password) = @_;
-        $saved_method ||= \&LWP::UserAgent::get_basic_credentials;
-        *LWP::UserAgent::get_basic_credentials
-            = sub { return $username, $password };
+    # The lastest LWP::UserAgent also supports 2 arguments,
+    # in which case the first is host:port
+    if (@_ == 4 || (@_ == 2 && $_[0] =~ /:\d+$/)) {
+        return $self->SUPER::credentials(@_);
     }
+
+    @_ == 2
+        or $self->die( 'Invalid # of args for overridden credentials()' );
+
+    return @$self{qw( __username __password )} = @_;
 }
 
+=head2 $mech->get_basic_credentials( $realm, $uri, $isproxy )
+
+Returns the credentials for the realm and URI.
+
+=cut
+
+sub get_basic_credentials {
+    my $self = shift;
+    my @cred = grep { defined } @$self{qw( __username __password )};
+    return @cred if @cred == 2;
+    return $self->SUPER::get_basic_credentials(@_);
+}
+
+=head2 $mech->clear_credentials()
+
+Remove any credentials set up with C<credentials()>.
+
+=cut
+
+sub clear_credentials {
+    my $self = shift;
+    delete @$self{qw( __username __password )};
+}
 
 =head1 INTERNAL-ONLY METHODS
 
@@ -2324,11 +2342,12 @@ Resets the internal fields that track page parsed stuff.
 sub _reset_page {
     my $self = shift;
 
-    $self->{_extracted_links} = 0;
+    $self->{_extracted_links}  = 0;
     $self->{_extracted_images} = 0;
-    $self->{links} = [];
-    $self->{images} = [];
-    $self->{forms} = [];
+    $self->{links}             = [];
+    $self->{images}            = [];
+    $self->{forms}             = [];
+
     delete $self->{form};
 
     return;
@@ -2342,11 +2361,12 @@ property with L<WWW::Mechanize::Link> objects.
 =cut
 
 my %link_tags = (
-    a => 'href',
-    area => 'href',
-    frame => 'src',
+    a      => 'href',
+    area   => 'href',
+    frame  => 'src',
     iframe => 'src',
-    meta => 'content',
+    link   => 'href',
+    meta   => 'content',
 );
 
 sub _extract_links {
@@ -2369,7 +2389,7 @@ sub _extract_links {
 
 
 my %image_tags = (
-    img => 'src',
+    img   => 'src',
     input => 'src',
 );
 
@@ -2718,6 +2738,8 @@ Just like Mech, but using Microsoft Internet Explorer to do the work.
 Thanks to the numerous people who have helped out on WWW::Mechanize in
 one way or another, including
 Kirrily Robert for the original C<WWW::Automate>,
+H.Merijn Brand,
+Matt Lawrence,
 Michael Schwern,
 Adriano Ferreira,
 Miyagawa,

@@ -1,6 +1,6 @@
 package main;
 
-require 5.006001;
+require 5.008000;
 
 use strict;
 use warnings;
@@ -42,12 +42,12 @@ my $parms = {
         'HTTP::Response::Encoding' => 0.05,
         'HTTP::Server::Simple'     => 0,
         'HTTP::Status'             => 0,
-        'LWP'                      => 5.815,
-        'LWP::UserAgent'           => 5.815,
+        'LWP'                      => 5.819,
+        'LWP::UserAgent'           => 5.819,
         'Pod::Usage'               => 0,
         'Test::More'               => 0.34,
         'Test::Warn'               => 0.11,
-        'URI'                      => 1.25,
+        'URI'                      => 1.36,
         'URI::URL'                 => 0,
         'URI::file'                => 0,
     },
