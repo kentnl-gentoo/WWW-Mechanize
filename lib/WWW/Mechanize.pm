@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.51_02
+Version 1.51_03
 
 =cut
 
-our $VERSION = '1.51_02';
+our $VERSION = '1.51_03';
 
 =head1 SYNOPSIS
 
@@ -431,6 +431,8 @@ The equivalent of hitting the "back" button in a browser.  Returns to
 the previous page.  Won't go back past the first page. (Really, what
 would it do if it could?)
 
+Returns true if it could go back, or false if not.
+
 =cut
 
 sub back {
@@ -482,7 +484,7 @@ Synonym for C<< $mech->response() >>
 Returns the HTTP status code of the response.  This is a 3-digit
 number like 200 for OK, 404 for not found, and so on.
 
-=head2 $mech->ct()
+=head2 $mech->ct() / $mech->content_type()
 
 Returns the content type of the response.
 
@@ -523,9 +525,10 @@ sub res {           my $self = shift; return $self->{res}; }
 sub response {      my $self = shift; return $self->{res}; }
 sub status {        my $self = shift; return $self->{status}; }
 sub ct {            my $self = shift; return $self->{ct}; }
+sub content_type {  my $self = shift; return $self->{ct}; }
 sub base {          my $self = shift; return $self->{base}; }
 sub current_form {  my $self = shift; return $self->{form}; }
-sub is_html {       my $self = shift; return defined $self->{ct} && ($self->{ct} eq 'text/html'); }
+sub is_html {       my $self = shift; return defined $self->ct && ($self->ct eq 'text/html'); }
 
 =head2 $mech->title()
 
@@ -701,6 +704,7 @@ sub follow_link {
 
     my $link = $self->find_link(%parms);
     return $self->get( $link->url ) if $link;
+    $self->die( 'Link not found: ', $link->url ) if $self->{autocheck};
     return;
 }
 
@@ -1211,12 +1215,11 @@ Selects a form by name.  If there is more than one form on the page
 with that name, then the first one is used, and a warning is
 generated.
 
-If it is found, the form is returned as an L<HTML::Form> object and set internally
-for later use with Mech's form methods such as C<L</field()>> and C<L</click()>>.
+If it is found, the form is returned as an L<HTML::Form> object and
+set internally for later use with Mech's form methods such as
+C<L</field()>> and C<L</click()>>.
 
 Returns undef if no form is found.
-
-Note that this functionality requires libwww-perl 5.69 or higher.
 
 =cut
 
@@ -1235,6 +1238,36 @@ sub form_name {
         return undef;
     }
 }
+
+=head2 $mech->form_id( $name )
+
+Selects a form by ID.  If there is more than one form on the page
+with that ID, then the first one is used, and a warning is generated.
+
+If it is found, the form is returned as an L<HTML::Form> object and
+set internally for later use with Mech's form methods such as
+C<L</field()>> and C<L</click()>>.
+
+Returns undef if no form is found.
+
+=cut
+
+sub form_id {
+    my ($self, $formid) = @_;
+
+    my $temp;
+    my @matches = grep { defined($temp = $_->attr('id')) and ($temp eq $formid) } $self->forms;
+    if ( @matches ) {
+        $self->warn( 'There are ', scalar @matches, " forms with ID $formid.  The first one was used." )
+            if @matches > 1;
+        return $self->{form} = $matches[0];
+    }
+    else {
+        $self->warn( qq{ There is no form with ID "$formid"} );
+        return undef;
+    }
+}
+
 
 =head2 $mech->form_with_fields( @fields )
 
@@ -1911,6 +1944,9 @@ sub stack_depth {
 Dumps the contents of C<< $mech->content >> into I<$filename>.
 I<$filename> will be overwritten.  Dies if there are any errors.
 
+If the content type does not begin with "text/", then the content
+is saved in binary mode.
+
 =cut
 
 sub save_content {
@@ -1918,6 +1954,7 @@ sub save_content {
     my $filename = shift;
 
     open( my $fh, '>', $filename ) or $self->die( "Unable to create $filename: $!" );
+    binmode $fh unless $self->content_type =~ m{^text/};
     print {$fh} $self->content or $self->die( "Unable to write to $filename: $!" );
     close $fh or $self->die( "Unable to close $filename: $!" );
 
@@ -2011,15 +2048,17 @@ sub dump_all {
 
 =head2 $mech->clone()
 
-Clone the mech object. We override here to be sure the cookie jar
-gets copied over
+Clone the mech object.  The clone will be using the same cookie jar
+as the original mech.
 
 =cut
 
 sub clone {
-    my $self = shift;
-    my $clone =  $self->SUPER::clone();
-    $clone->{cookie_jar} = $self->cookie_jar;
+    my $self  = shift;
+    my $clone = $self->SUPER::clone();
+
+    $clone->cookie_jar( $self->cookie_jar );
+
     return $clone;
 }
 
@@ -2738,6 +2777,8 @@ Just like Mech, but using Microsoft Internet Explorer to do the work.
 Thanks to the numerous people who have helped out on WWW::Mechanize in
 one way or another, including
 Kirrily Robert for the original C<WWW::Automate>,
+Dave Page,
+David Sainty,
 H.Merijn Brand,
 Matt Lawrence,
 Michael Schwern,
