@@ -19,7 +19,6 @@ t/area_link.t
 t/autocheck.t
 t/clone.t
 t/content.t
-t/cookies.t
 t/credentials-api.t
 t/credentials.t
 t/die.t
