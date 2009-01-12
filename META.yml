@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                WWW-Mechanize
-version:             1.52
+version:             1.54
 abstract:            Handy web browsing in a Perl object
 license:             ~
 author:              
