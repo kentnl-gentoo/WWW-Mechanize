@@ -133,14 +133,14 @@ my $server404url = $server404->url;
 die 'Cannot fork' if (! defined (my $pid404 = fork()));
 END {
     local $?;
-    kill KILL => $pid404; # Extreme prejudice intended, because we do not
+    kill KILL => $pid404 if $pid404; # Extreme prejudice intended, because we do not
     # want the global cleanup to be done twice.
 }
 
 if (! $pid404) { # Fake HTTP server code: a true 404-compliant server!
     while ( my $c = $server404->accept() ) {
         while ( $c->get_request() ) {
-            $c->send_response( new HTTP::Response(404) );
+            $c->send_response( HTTP::Response->new(404) );
             $c->close();
         }
     }

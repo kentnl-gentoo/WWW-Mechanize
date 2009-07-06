@@ -4,13 +4,14 @@ use warnings;
 use strict;
 
 use WWW::Mechanize;
-use Test::More tests => 12;
+use Test::More tests => 14;
 
-my $mech = new WWW::Mechanize;
+my $mech = WWW::Mechanize->new;
+isa_ok( $mech, 'WWW::Mechanize' );
 
 my ($user, $pass);
 
-my $uri = new URI 'http://localhost';
+my $uri = URI->new( 'http://localhost' );
 
 ($user, $pass) = $mech->get_basic_credentials('myrealm', $uri, 0);
 is $user, undef, 'default username is undefined at first';
@@ -33,7 +34,8 @@ is $user, 'username',
 is $pass, 'password',
    'cloned object has password for get_basic_credentials';
 
-my $mech3 = new WWW::Mechanize;
+my $mech3 = WWW::Mechanize->new;
+isa_ok( $mech3, 'WWW::Mechanize' );
 
 ($user, $pass) = $mech3->get_basic_credentials('myrealm', $uri, 0);
 is $user, undef, 'new object has no username for get_basic_credentials';

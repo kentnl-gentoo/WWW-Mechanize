@@ -29,42 +29,48 @@ my $parms = {
     AUTHOR          => 'Andy Lester <andy@petdance.com>',
     EXE_FILES       => [ 'bin/mech-dump' ],
     PREREQ_PM       => {
-        'Carp'                     => 0,
-        'File::Temp'               => 0,
-        'FindBin'                  => 0,
-        'Getopt::Long'             => 0,
-        'HTML::Form'               => 1.038,
-        'HTML::HeadParser'         => 0,
-        'HTML::Parser'             => 3.33,
-        'HTML::TokeParser'         => 2.28,
-        'HTTP::Daemon'             => 0,
-        'HTTP::Request'            => 1.30,
-        'HTTP::Response::Encoding' => 0.05,
-        'HTTP::Server::Simple'     => 0,
-        'HTTP::Status'             => 0,
-        'LWP'                      => 5.819,
-        'LWP::UserAgent'           => 5.819,
-        'Pod::Usage'               => 0,
-        'Test::More'               => 0.34,
-        'Test::Warn'               => 0.11,
-        'URI'                      => 1.36,
-        'URI::URL'                 => 0,
-        'URI::file'                => 0,
+        'Carp'                      => 0,
+        'File::Temp'                => 0,
+        'FindBin'                   => 0,
+        'Getopt::Long'              => 0,
+        'HTML::Form'                => 1.038,
+        'HTML::HeadParser'          => 0,
+        'HTML::Parser'              => 3.33,
+        'HTML::TokeParser'          => 2.28,
+        'HTTP::Daemon'              => 0,
+        'HTTP::Request'             => 1.30,
+        'HTTP::Response::Encoding'  => 0.05,
+        'HTTP::Server::Simple'      => 0.35,
+        'HTTP::Server::Simple::CGI' => 0,
+        'HTTP::Status'              => 0,
+        'LWP'                       => 5.819,
+        'LWP::UserAgent'            => 5.819,
+        'Pod::Usage'                => 0,
+        'Test::More'                => 0.34,
+        'Test::Warn'                => 0.11,
+        'URI'                       => 1.36,
+        'URI::URL'                  => 0,
+        'URI::file'                 => 0,
     },
     test            => { TESTS => join( ' ', @tests ) },
     clean           => { FILES => 'WWW-Mechanize-*' },
 };
 
-if ( $ExtUtils::MakeMaker::VERSION eq '6.36' ) {
-    $parms->{EXTRA_META} = <<EOF;
-resources:
-    license: http://dev.perl.org/licenses/
-    homepage: http://code.google.com/p/www-mechanize/
-    bugtracker: http://code.google.com/p/www-mechanize/issues/list
-    Repository: http://code.google.com/p/www-mechanize/source
-    MailingList: http://groups.google.com/group/www-mechanize-users
-EOF
-    }
+if ( $ExtUtils::MakeMaker::VERSION ge '6.45_01' ) {
+    $parms->{META_MERGE} = {
+        resources => {
+            license     => 'http://dev.perl.org/licenses/',
+            homepage    => 'http://code.google.com/p/www-mechanize/',
+            bugtracker  => 'http://code.google.com/p/www-mechanize/issues/list',
+            Repository  => 'http://code.google.com/p/www-mechanize/source',
+            MailingList => 'http://groups.google.com/group/www-mechanize-users',
+        }
+    };
+    $parms->{LICENSE} = 'perl';
+}
+if ( $ExtUtils::MakeMaker::VERSION ge '6.47_02' ) {
+    $parms->{MIN_PERL_VERSION} = 5.008;
+}
 
 
 eval { require LWP; };

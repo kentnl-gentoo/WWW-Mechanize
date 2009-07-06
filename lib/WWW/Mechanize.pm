@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.54
+Version 1.55_01
 
 =cut
 
-our $VERSION = '1.54';
+our $VERSION = '1.55_01';
 
 =head1 SYNOPSIS
 
@@ -196,9 +196,11 @@ calling C<< $mech->quiet(1) >>.  Default is off.
 
 =item * C<< stack_depth => $value >>
 
-Sets the depth of the page stack that keeps track of all the downloaded
-pages. Default is 0 (infinite). If the stack is eating up your memory,
-then set it to 1.
+Sets the depth of the page stack that keeps track of all the
+downloaded pages. Default is effectively infinite stack size.  If
+the stack is eating up your memory, then set this to a smaller
+number, say 5 or 10.  Setting this to zero means Mech will keep no
+history.
 
 =back
 
@@ -219,6 +221,7 @@ sub new {
         quiet       => 0,
         stack_depth => 8675309,     # Arbitrarily humongous stack
         headers     => {},
+        noproxy     => 0,
     );
 
     my %passed_parms = @_;
@@ -241,7 +244,7 @@ sub new {
         $self->{$parm} = $mech_parms{$parm};
     }
     $self->{page_stack} = [];
-    $self->env_proxy() unless $parent_parms{noproxy};
+    $self->env_proxy() unless $mech_parms{noproxy};
 
     # libwww-perl 5.800 (and before, I assume) has a problem where
     # $ua->{proxy} can be undef and clone() doesn't handle it.
@@ -1593,12 +1596,12 @@ sub untick {
     shift->tick(shift,shift,undef);
 }
 
-=head2 $mech->value( $name, $number )
+=head2 $mech->value( $name [, $number] )
 
 Given the name of a field, return its value. This applies to the current
 form.
 
-The option I<$number> parameter is used to distinguish between two fields
+The optional I<$number> parameter is used to distinguish between two fields
 with the same name.  The fields are numbered from 1.
 
 If the field is of type file (file upload field), the value is always
@@ -1764,7 +1767,7 @@ the name or number of the form to do this.
 
 (calls C<L</form_with_fields()>> and C<L</set_fields()>>).
 
-If you choose this, the form_number, form_name and fields options will be ignored.
+If you choose this, the form_number, form_name, form_id and fields options will be ignored.
 
 =item * form_number => n
 
@@ -1774,6 +1777,10 @@ specified, the currently-selected form is used.
 =item * form_name => name
 
 Selects the form named I<name> (calls C<L</form_name()>>)
+
+=item * form_id => ID
+
+Selects the form with ID I<ID> (calls C<L</form_id()>>)
 
 =item * button => button
 
@@ -1797,7 +1804,7 @@ sub submit_form {
     my( $self, %args ) = @_ ;
 
     for ( keys %args ) {
-        if ( !/^(form_(number|name|fields)|(with_)?fields|button|x|y)$/ ) {
+        if ( !/^(form_(number|name|fields|id)|(with_)?fields|button|x|y)$/ ) {
             # XXX Why not die here?
             $self->warn( qq{Unknown submit_form parameter "$_"} );
         }
@@ -1816,15 +1823,18 @@ sub submit_form {
         }
     }
 
-    if ($args{'with_fields'}) {
+    if ( $args{with_fields} ) {
         $fields || die q{must submit some 'fields' with with_fields};
         $self->form_with_fields(keys %{$fields}) or die "There is no form with the requested fields";
     }
-    elsif ( my $form_number = $args{'form_number'} ) {
+    elsif ( my $form_number = $args{form_number} ) {
         $self->form_number( $form_number ) or die "There is no form numbered $form_number";
     }
-    elsif ( my $form_name = $args{'form_name'} ) {
+    elsif ( my $form_name = $args{form_name} ) {
         $self->form_name( $form_name ) or die qq{There is no form named "$form_name"};
+    }
+    elsif ( my $form_id = $args{form_id} ) {
+        $self->form_id( $form_id ) or die qq{There is no form with ID "$form_id"};
     }
     else {
         # No form selector was used.
@@ -2376,7 +2386,7 @@ L<WWW::Mechanize::Cached> to intercept the request.
 
 sub _make_request {
     my $self = shift;
-    $self->SUPER::request(@_);
+    return $self->SUPER::request(@_);
 }
 
 =head2 $mech->_reset_page()
@@ -2831,7 +2841,7 @@ and the late great Iain Truskett.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2005-2008 Andy Lester. All rights reserved. This program is
+Copyright (c) 2005-2009 Andy Lester. All rights reserved. This program is
 free software; you can redistribute it and/or modify it under the same
 terms as Perl itself.
 

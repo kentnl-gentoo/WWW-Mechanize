@@ -2,6 +2,8 @@
 
 # XXX add cookie reading on the server side to the test
 
+BEGIN { delete @ENV{ qw( http_proxy HTTP_PROXY ) }; }
+
 use warnings;
 use strict;
 use Test::More tests => 14;
@@ -10,9 +12,8 @@ use WWW::Mechanize;
 use URI::Escape qw( uri_unescape );
 
 
-use lib 't/lib';
+use lib 't/';
 use TestServer;
-
 
 my $ncookies = 0;
 
@@ -49,17 +50,17 @@ sub nosend_cookies {
         $cgi->end_html;
 }
 
-# start the server on port 8080
 my $server = TestServer->new();
 $server->set_dispatch( {
     '/feedme'   => \&send_cookies,
     '/nocookie' => \&nosend_cookies,
 } );
+my $pid = $server->background();
 
-my ($port,$pid) = $server->spawn();
+my $root             = $server->root;
 
-my $cookiepage_url   = "http://127.0.0.1:$port/feedme";
-my $nocookiepage_url = "http://127.0.0.1:$port/nocookie";
+my $cookiepage_url   = "$root/feedme";
+my $nocookiepage_url = "$root/nocookie";
 
 my $mech = WWW::Mechanize->new( autocheck => 0 );
 isa_ok( $mech, 'WWW::Mechanize' );
@@ -112,7 +113,8 @@ GET_A_THIRD_COOKIE: {
 }
 
 
-my $nprocesses = kill 15, $pid;
+my $signal = ($^O eq 'MSWin32') ? 9 : 15;
+my $nprocesses = kill $signal, $pid;
 is( $nprocesses, 1, 'Signaled the child process' );
 
 
