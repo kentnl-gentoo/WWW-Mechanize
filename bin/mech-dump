@@ -23,10 +23,11 @@ my $agent_alias;
 GetOptions(
     'user=s'        => \$user,
     'password=s'    => \$pass,
+    headers         => sub { push( @actions, \&dump_headers ); },
     forms           => sub { push( @actions, \&dump_forms ); },
     links           => sub { push( @actions, \&dump_links ); },
     images          => sub { push( @actions, \&dump_images ); },
-    all             => sub { push( @actions, \&dump_forms, \&dump_links, \&dump_images ); },
+    all             => sub { push( @actions, \&dump_headers, \&dump_forms, \&dump_links, \&dump_images ); },
     absolute        => \$absolute,
     'agent=s'       => \$agent,
     'agent-alias=s' => \$agent_alias,
@@ -39,10 +40,11 @@ mech-dump [options] [file|url]
 
 Options:
 
+    --headers       Dump HTTP response headers
     --forms         Dump table of forms (default action)
     --links         Dump table of links
     --images        Dump table of images
-    --all           Dump all three of the above, in that order
+    --all           Dump all four of the above, in that order
 
     --user=user     Set the username
     --password=pass Set the password
@@ -93,8 +95,22 @@ if (!$response->is_success and defined ($response->www_authenticate)) {
 }
 $mech->is_html or die qq{$uri returns type "}, $mech->ct, qq{", not "text/html"\n};
 
-for my $action ( @actions ) {
+while ( my $action = shift @actions ) {
     $action->( $mech );
+    print "\n" if @actions;
+}
+
+
+sub dump_headers {
+    my $mech = shift;
+    $mech->dump_headers( undef );
+    return;
+}
+
+sub dump_forms {
+    my $mech = shift;
+    $mech->dump_forms( undef, $absolute );
+    return;
 }
 
 sub dump_links {
@@ -106,11 +122,5 @@ sub dump_links {
 sub dump_images {
     my $mech = shift;
     $mech->dump_images( undef, $absolute );
-    return;
-}
-
-sub dump_forms {
-    my $mech = shift;
-    $mech->dump_forms( undef, $absolute );
     return;
 }

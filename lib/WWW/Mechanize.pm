@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.55_01
+Version 1.56
 
 =cut
 
-our $VERSION = '1.55_01';
+our $VERSION = '1.56';
 
 =head1 SYNOPSIS
 
@@ -103,10 +103,9 @@ use strict;
 use warnings;
 
 use HTTP::Request 1.30;
-use LWP::UserAgent 2.003;
+use LWP::UserAgent 5.827;
 use HTML::Form 1.00;
 use HTML::TokeParser;
-use HTTP::Response::Encoding 0.05;
 
 use base 'LWP::UserAgent';
 
@@ -203,6 +202,10 @@ number, say 5 or 10.  Setting this to zero means Mech will keep no
 history.
 
 =back
+
+To support forms, WWW::Mechanize's constructor pushes POST
+on to the agent's C<requests_redirectable> list (see also
+L<LWP::UserAgent>.)
 
 =cut
 
@@ -954,19 +957,15 @@ then the return will be an empty array.
 You may use a regex or a literal string:
 
     # get all textarea controls whose names begin with "customer"
-    my @customer_text_inputs =
-        $mech->find_all_inputs( {
-            type       => 'textarea',
-            name_regex => qr/^customer/,
-        }
+    my @customer_text_inputs = $mech->find_all_inputs(
+        type       => 'textarea',
+        name_regex => qr/^customer/,
     );
 
     # get all text or textarea controls called "customer"
-    my @customer_text_inputs =
-        $mech->find_all_inputs( {
-            type_regex => qr/^(text|textarea)$/,
-            name       => 'customer',
-        }
+    my @customer_text_inputs = $mech->find_all_inputs(
+        type_regex => qr/^(text|textarea)$/,
+        name       => 'customer',
     );
 
 =cut
@@ -1978,6 +1977,28 @@ sub save_content {
     return;
 }
 
+
+=head2 $mech->dump_headers( [$fh] )
+
+Prints a dump of the HTTP response headers for the most recent
+response.  If I<$fh> is not specified or is undef, it dumps to
+STDOUT.
+
+Unlike the rest of the dump_* methods, you cannot specify a filehandle
+to print to.
+
+=cut
+
+sub dump_headers {
+    my $self = shift;
+    my $fh   = shift || \*STDOUT;
+
+    print {$fh} $self->response->headers_as_string;
+
+    return;
+}
+
+
 =head2 $mech->dump_links( [[$fh], $absolute] )
 
 Prints a dump of the links on the current page to I<$fh>.  If I<$fh>
@@ -2085,6 +2106,9 @@ sub clone {
 An overloaded version of C<redirect_ok()> in L<LWP::UserAgent>.
 This method is used to determine whether a redirection in the request
 should be followed.
+
+Note that WWW::Mechanize's constructor pushes POST on to the agent's
+C<requests_redirectable> list.
 
 =cut
 
@@ -2794,6 +2818,9 @@ Just like Mech, but using Microsoft Internet Explorer to do the work.
 Thanks to the numerous people who have helped out on WWW::Mechanize in
 one way or another, including
 Kirrily Robert for the original C<WWW::Automate>,
+Jeremy Ary,
+Hilary Holz,
+Rafael Kitover,
 Norbert Buchmuller,
 Dave Page,
 David Sainty,

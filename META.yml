@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               WWW-Mechanize
-version:            1.55_01
+version:            1.56
 abstract:           Handy web browsing in a Perl object
 author:
     - Andy Lester <andy@petdance.com>
@@ -25,8 +25,8 @@ requires:
     HTTP::Server::Simple:  0.35
     HTTP::Server::Simple::CGI:  0
     HTTP::Status:         0
-    LWP:                  5.819
-    LWP::UserAgent:       5.819
+    LWP:                  5.829
+    LWP::UserAgent:       5.829
     perl:                 5.008
     Pod::Usage:           0
     Test::More:           0.34
