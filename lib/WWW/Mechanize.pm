@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.58
+Version 1.60
 
 =cut
 
-our $VERSION = '1.58';
+our $VERSION = '1.60';
 
 =head1 SYNOPSIS
 
@@ -649,7 +649,7 @@ sub _check_unhandled_parms {
 
 =head1 LINK METHODS
 
-=head2 $mech->links
+=head2 $mech->links()
 
 Lists all the links on the current page.  Each link is a
 WWW::Mechanize::Link object. In list context, returns a list of all
@@ -658,7 +658,7 @@ links.  In scalar context, returns an array reference of all links.
 =cut
 
 sub links {
-    my $self = shift ;
+    my $self = shift;
 
     $self->_extract_links() unless $self->{_extracted_links};
 
@@ -1021,7 +1021,7 @@ images.  In scalar context, returns an array reference of all images.
 =cut
 
 sub images {
-    my $self = shift ;
+    my $self = shift;
 
     $self->_extract_images() unless $self->{_extracted_images};
 
@@ -1180,7 +1180,7 @@ context, returns an array reference of all forms.
 =cut
 
 sub forms {
-    my $self = shift ;
+    my $self = shift;
     return @{$self->{forms}} if wantarray;
     return $self->{forms};
 }
@@ -1355,16 +1355,16 @@ sub field {
 =head2 $mech->select($name, \@values)
 
 Given the name of a C<select> field, set its value to the value
-specified.  If the field is not E<lt>select multipleE<gt> and the
+specified.  If the field is not C<< <select multiple> >> and the
 C<$value> is an array, only the B<first> value will be set.  [Note:
 the documentation previously claimed that only the last value would
 be set, but this was incorrect.]  Passing C<$value> as a hash with
 an C<n> key selects an item by number (e.g.
-C<< {n => 3} >> or C<{ {n => [2,4]} >>).
+C<< {n => 3} >> or C<< {n => [2,4]} >>).
 The numbering starts at 1.  This applies to the current form.
 
-Returns 1 on successfully setting the value. On failure, returns
-undef and calls C<< $self>warn() >> with an error message.
+Returns true on successfully setting the value. On failure, returns
+false and calls C<< $self>warn() >> with an error message.
 
 =cut
 
@@ -1450,7 +1450,7 @@ of the duplicate field to set, use a value which is an anonymous array
 which has the field value and its number as the 2 elements.
 
         # set the second foo field
-        $mech->set_fields( $name => [ 'foo', 2 ] ) ;
+        $mech->set_fields( $name => [ 'foo', 2 ] );
 
 The fields are numbered from 1.
 
@@ -1483,7 +1483,7 @@ password, you do not have to fetch the form and inspect the source (or
 use the F<mech-dump> utility, installed with WWW::Mechanize) to see
 what the field names are; you can just say
 
-    $mech->set_visible( $username, $password ) ;
+    $mech->set_visible( $username, $password );
 
 and the first and second fields will be set accordingly.  The method
 is called set_I<visible> because it acts only on visible fields;
@@ -1498,11 +1498,11 @@ you to specify the I<type> of input field you want to set and is
 denoted with an arrayref containing two elements.  So you could
 specify the first radio button with
 
-    $mech->set_visible( [ radio => 'KCRW' ] ) ;
+    $mech->set_visible( [ radio => 'KCRW' ] );
 
 Field values and specifiers can be intermixed, hence
 
-    $mech->set_visible( 'fred', 'secret', [ option => 'Checking' ] ) ;
+    $mech->set_visible( 'fred', 'secret', [ option => 'Checking' ] );
 
 would set the first two fields to "fred" and "secret", and the I<next>
 C<OPTION> menu field to "Checking".
@@ -1653,19 +1653,19 @@ the keys.
 
 =over 4
 
-=item * name => name
+=item * C<< name => name >>
 
 Clicks the button named I<name> in the current form.
 
-=item * number => n
+=item * C<< number => n >>
 
 Clicks the I<n>th button in the current form. Numbering starts at 1.
 
-=item * value => value
+=item * C<< value => value >>
 
 Clicks the button with the value I<value> in the current form.
 
-=item * input => $inputobject
+=item * C<< input => $inputobject >>
 
 Clicks on the button referenced by $inputobject, an instance of
 L<HTML::Form::SubmitInput> obtained e.g. from
@@ -1674,9 +1674,9 @@ L<HTML::Form::SubmitInput> obtained e.g. from
 
 $inputobject must belong to the current form.
 
-=item * x => x
+=item * C<< x => x >>
 
-=item * y => y
+=item * C<< y => y >>
 
 These arguments (optional) allow you to specify the (x,y) coordinates
 of the click.
@@ -1753,11 +1753,11 @@ are a list of key/value pairs, all of which are optional.
 
 =over 4
 
-=item * fields => \%fields
+=item * C<< fields => \%fields >>
 
 Specifies the fields to be filled in the current form.
 
-=item * with_fields => \%fields
+=item * C<< with_fields => \%fields >>
 
 Probably all you need for the common case. It combines a smart form selector
 and data setting in one operation. It selects the first form that contains all
@@ -1768,24 +1768,24 @@ the name or number of the form to do this.
 
 If you choose this, the form_number, form_name, form_id and fields options will be ignored.
 
-=item * form_number => n
+=item * C<< form_number => n >>
 
 Selects the I<n>th form (calls C<L</form_number()>>).  If this parm is not
 specified, the currently-selected form is used.
 
-=item * form_name => name
+=item * C<< form_name => name >>
 
 Selects the form named I<name> (calls C<L</form_name()>>)
 
-=item * form_id => ID
+=item * C<< form_id => ID >>
 
 Selects the form with ID I<ID> (calls C<L</form_id()>>)
 
-=item * button => button
+=item * C<< button => button >>
 
 Clicks on button I<button> (calls C<L</click()>>)
 
-=item * x => x, y => y
+=item * C<< x => x, y => y >>
 
 Sets the x or y values for C<L</click()>>
 
@@ -1800,7 +1800,7 @@ Returns an L<HTTP::Response> object.
 =cut
 
 sub submit_form {
-    my( $self, %args ) = @_ ;
+    my( $self, %args ) = @_;
 
     for ( keys %args ) {
         if ( !/^(form_(number|name|fields|id)|(with_)?fields|button|x|y)$/ ) {
