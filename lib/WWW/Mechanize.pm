@@ -6,20 +6,46 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.60
+Version 1.62
 
 =cut
 
-our $VERSION = '1.60';
+our $VERSION = '1.62';
 
 =head1 SYNOPSIS
 
-C<WWW::Mechanize>, or Mech for short, helps you automate interaction with
-a website. It supports performing a sequence of page fetches including
-following links and submitting forms. Each fetched page is parsed and
-its links and forms are extracted. A link or a form can be selected, form
-fields can be filled and the next page can be fetched. Mech also stores
-a history of the URLs you've visited, which can be queried and revisited.
+C<WWW::Mechanize>, or Mech for short, is a Perl module for stateful
+programmatic web browsing, used for automating interaction with
+websites.
+
+Features include:
+
+=over 4
+
+=item * All HTTP methods
+
+=item * High-level hyperlink and HTML form support, without having to parse HTML yourself
+
+=item * SSL support
+
+=item * Automatic cookies
+
+=item * Custom HTTP headers
+
+=item * Automatic handling of redirections
+
+=item * Proxies
+
+=item * HTTP authentication
+
+=back
+
+Mech supports performing a sequence of page fetches including
+following links and submitting forms. Each fetched page is parsed
+and its links and forms are extracted. A link or a form can be
+selected, form fields can be filled and the next page can be fetched.
+Mech also stores a history of the URLs you've visited, which can
+be queried and revisited.
 
     use WWW::Mechanize;
     my $mech = WWW::Mechanize->new();
@@ -709,8 +735,14 @@ sub follow_link {
     }
 
     my $link = $self->find_link(%parms);
-    return $self->get( $link->url ) if $link;
-    $self->die( 'Link not found: ', $link->url ) if $self->{autocheck};
+    if ( $link ) {
+        return $self->get( $link->url );
+    }
+
+    if ( $self->{autocheck} ) {
+        $self->die( 'Link not found' );
+    }
+
     return;
 }
 
@@ -1209,10 +1241,8 @@ sub form_number {
         $self->{form} = $self->{forms}->[$form-1];
         return $self->{form};
     }
-    else {
-        $self->warn( "There is no form numbered $form" );
-        return undef;
-    }
+
+    return;
 }
 
 =head2 $mech->form_name( $name )
@@ -1239,10 +1269,8 @@ sub form_name {
             if $nmatches > 1;
         return $self->{form} = $matches[0];
     }
-    else {
-        $self->warn( qq{ There is no form named "$form"} );
-        return undef;
-    }
+
+    return;
 }
 
 =head2 $mech->form_id( $name )
@@ -1362,6 +1390,11 @@ be set, but this was incorrect.]  Passing C<$value> as a hash with
 an C<n> key selects an item by number (e.g.
 C<< {n => 3} >> or C<< {n => [2,4]} >>).
 The numbering starts at 1.  This applies to the current form.
+
+If you have a field with C<< <select multiple> >> and you pass a single
+C<$value>, then C<$value> will be added to the list of fields selected,
+without clearing the others.  However, if you pass an array reference,
+then all previously selected values will be cleared.
 
 Returns true on successfully setting the value. On failure, returns
 false and calls C<< $self>warn() >> with an error message.
@@ -1699,7 +1732,8 @@ sub click_button {
         $_ = 1 unless defined;
     }
 
-    my $form = $self->{form};
+    my $form = $self->{form} or $self->die( 'click_button: No form has been selected' );
+
     my $request;
     if ( $args{name} ) {
         $request = $form->click( $args{name}, $args{x}, $args{y} );
@@ -2332,7 +2366,7 @@ sub _taintedness {
     return $_taintbrush if _is_tainted( $_taintbrush );
 
     # Let's try again. Maybe somebody cleaned those.
-    $_taintbrush = substr(join("", @ARGV, %ENV), 0, 0);
+    $_taintbrush = substr(join('', grep { defined } @ARGV, %ENV), 0, 0);
     return $_taintbrush if _is_tainted( $_taintbrush );
 
     # If those don't work, go try to open some file from some unsafe
@@ -2869,7 +2903,7 @@ and the late great Iain Truskett.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2005-2009 Andy Lester. All rights reserved. This program is
+Copyright (c) 2005-2010 Andy Lester. All rights reserved. This program is
 free software; you can redistribute it and/or modify it under the same
 terms as Perl itself.
 

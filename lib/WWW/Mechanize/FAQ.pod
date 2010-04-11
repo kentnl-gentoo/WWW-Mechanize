@@ -233,6 +233,51 @@ Using C<< $mech->form_name($number) >>:
     #Access the form using its Zero-Based Index by DOM order
     $mech->form_name('trgForm')->action('http://newAction'); #ABS URL
 
+=head2 How do I save an image?  How do I save a large tarball?
+
+An image is just content.  You get the image and save it.
+
+    $mech->get( 'photo.jpg' );
+    $mech->save_content( '/path/to/my/directory/photo.jpg' );
+
+You can also save any content directly to disk using the C<:content_file>
+flag to C<get()>, which is part of L<LWP::UserAgent>.
+
+    $mech->get( 'http://www.cpan.org/src/stable.tar.gz',
+                ':content_file' => 'stable.tar.gz' );
+
+=head2 How do I pick a specific value from a C<< <select> >> list?
+
+Find the C<HTML::Form::ListInput> in the page.
+
+    my ($listbox) = $mech->find_all_inputs( name => 'listbox' );
+
+Then create a hash for the lookup:
+
+    my %name_lookup;
+    @name_lookup{ $listbox->value_names } = $listbox->possible_values;
+    my $value = $name_lookup{ 'Name I want' };
+
+If you have duplicate names, this method won't work, and you'll
+have to loop over C<< $listbox->value_names >> and
+C<< $listbox->possible_values >> in parallel until you find a
+matching name.
+
+=head2 How do I get Mech to not follow redirects?
+
+You use functionality in LWP::UserAgent, not Mech itself.
+
+    $mech->requests_redirectable( [] );
+
+Or you can set C<max_redirect>:
+
+    $mech->max_redirect( 0 );
+
+Both these options can also be set in the constructor.  Mech doesn't
+understand them, so will pass them through to the LWP::UserAgent
+constructor.
+
+
 =head1 Why doesn't this work: Debugging your Mechanize program
 
 =head2 My Mech program doesn't work, but it works in the browser.
