@@ -8,7 +8,32 @@ http://code.google.com/p/www-mechanize/issues/list
 Mech now has its own mailing list at Google Groups:
 http://groups.google.com/group/www-mechanize-users
 
-NEXT        Sat Apr 10 23:10:07 CDT 2010
+
+1.64        Thu Jul  1 10:41:00 CDT 2010
+========================================
+[THINGS THAT MAY BREAK YOUR CODE]
+If you've been accessing $mech->{forms} or $mech->{form} values
+directly, instead of going through the $mech->forms or $mech->current_form
+accessors, respectively, then this version of Mech will break your
+code.
+
+[ENHANCEMENTS]
+Parsing of forms has been delayed until they're actually needed.
+If don't use forms on a page, you'll no longer waste time and memory
+parsing them.
+
+$mech->title now caches the title of the page after parsing the
+page to find it.
+
+mech-dump now takes a --cookie-file parameter for keeping cookies
+between calls.
+
+
+[DOCUMENTATION]
+Typo fixes.
+
+
+1.62        Sat Apr 10 23:10:07 CDT 2010
 ========================================
 [FIXED]
 Fixed a declaration in the Movable Type example in
