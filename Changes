@@ -9,6 +9,27 @@ Mech now has its own mailing list at Google Groups:
 http://groups.google.com/group/www-mechanize-users
 
 
+1.66        Fri Sep 10 16:25:44 CDT 2010
+========================================
+[FIXED]
+Fixed prerequisites on HTTP::Server::Simple on Windows.
+
+DNS checks in t/autocheck.t and t/local/failure.t improved.  Thanks,
+Schwern.
+
+[ENHANCEMENTS]
+New $mech->text method returns the text from your HTML page.  The
+exact rendering of this text is simply removing all the HTML
+tags, but this will change. It's pretty ugly.  If anyone wants to
+work on a better-looking text dump, I'd love to see it.
+
+Added mech-dump --text.
+
+[DOCUMENTATION]
+Improvements to the docs explaining explicitly about the subclassed
+methods we inherit from LWP::UserAgent.  Thanks, Lyle Hopkins!
+
+
 1.64        Thu Jul  1 10:41:00 CDT 2010
 ========================================
 [THINGS THAT MAY BREAK YOUR CODE]
@@ -26,7 +47,7 @@ $mech->title now caches the title of the page after parsing the
 page to find it.
 
 mech-dump now takes a --cookie-file parameter for keeping cookies
-between calls.
+between calls.  Thanks, Damien Clark.
 
 
 [DOCUMENTATION]

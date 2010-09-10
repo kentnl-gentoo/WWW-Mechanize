@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.64
+Version 1.66
 
 =cut
 
-our $VERSION = '1.64';
+our $VERSION = '1.66';
 
 =head1 SYNOPSIS
 
@@ -630,7 +630,12 @@ sub content {
         }
 
         if ( my $format = delete $parms{format} ) {
-            $content = $self->_format_content( $format, $content );
+            if ( $format eq 'text' ) {
+                $content = $self->text;
+            }
+            else {
+                $self->die( qq{Unknown "format" parameter "$format"} );
+            }
         }
 
         $self->_check_unhandled_parms( %parms );
@@ -639,32 +644,31 @@ sub content {
     return $content;
 }
 
-sub _format_content {
+=head2 $mech->text()
+
+Returns the text of the current HTML content.  If the content isn't
+HTML, $mech will die.
+
+The text is extracted by parsing the content, and then the extracted
+text is cached, so don't worry about performance of calling this
+repeatedly.
+
+=cut
+
+sub text {
     my $self = shift;
-    my $format = shift;
-    my $content = shift;
 
-    if ( $format eq 'text' ) {
-        return $self->_content_as_text($content);
+    if ( not defined $self->{text} ) {
+        require HTML::TreeBuilder;
+        my $tree = HTML::TreeBuilder->new();
+        $tree->parse( $self->content );
+        $tree->eof();
+        $tree->elementify(); # just for safety
+        $self->{text} = $tree->as_text();
+        $tree->delete;
     }
-    else {
-        $self->die( qq{Unknown "format" parameter "$format"} );
-    }
-}
 
-sub _content_as_text {
-    my $self = shift;
-    my $content = shift;
-
-    require HTML::TreeBuilder;
-    my $tree = HTML::TreeBuilder->new();
-    $tree->parse($content);
-    $tree->eof();
-    $tree->elementify(); # just for safety
-    my $formatted_content = $tree->as_text();
-    $tree->delete;
-
-    return $formatted_content;
+    return $self->{text};
 }
 
 sub _check_unhandled_parms {
@@ -955,6 +959,8 @@ sub _clean_keys {
             }
         }
     } # for keys %parms
+
+    return;
 } # _clean_keys()
 
 
@@ -1850,6 +1856,11 @@ If no form is selected, the first form found is used.
 
 If I<button> is not passed, then the C<L</submit()>> method is used instead.
 
+If you want to submit a file and get its content from a scalar rather
+than a file in the filesystem, you can use:
+
+    $mech->submit_form(with_fields => { logfile => [ [ undef, 'whatever', Content => $content ], 1 ] } );
+
 Returns an L<HTTP::Response> object.
 
 =cut
@@ -2115,23 +2126,19 @@ sub dump_forms {
     return;
 }
 
-=head2 $mech->dump_all( [[$fh], $absolute] )
+=head2 $mech->dump_text( [$fh] )
 
-Prints a dump of all links, images and forms on the current page to
-I<$fh>.  If I<$fh> is not specified or is undef, it dumps to STDOUT.
-
-If I<$absolute> is true, links displayed are absolute, not relative.
+Prints a dump of the text on the current page to I<$fh>.  If I<$fh>
+is not specified or is undef, it dumps to STDOUT.
 
 =cut
 
-sub dump_all {
+sub dump_text {
     my $self = shift;
     my $fh = shift || \*STDOUT;
     my $absolute = shift;
 
-    $self->dump_links( $fh, $absolute );
-    $self->dump_images( $fh, $absolute );
-    $self->dump_forms( $fh, $absolute );
+    print {$fh} $self->text, "\n";
 
     return;
 }
@@ -2203,9 +2210,7 @@ sub request {
         $self->_push_page_stack();
     }
 
-    $self->_update_page($request, $self->_make_request( $request, @_ ));
-
-    # XXX This should definitively return something.
+    return $self->_update_page($request, $self->_make_request( $request, @_ ));
 }
 
 =head2 $mech->update_html( $html )
@@ -2252,8 +2257,6 @@ sub update_html {
     $self->_reset_page;
     $self->{ct} = 'text/html';
     $self->{content} = $html;
-
-    $self->_reset_page();
 
     return;
 }
@@ -2306,6 +2309,44 @@ sub clear_credentials {
     my $self = shift;
     delete @$self{qw( __username __password )};
 }
+
+=head1 INHERITED UNCHANGED LWP::UserAgent METHODS
+
+As a sublass of L<LWP::UserAgent>, WWW::Mechanize inherits all of
+L<LWP::UserAgent>'s methods.  Many of which are overridden or
+extended. The following methods are inherited unchanged. View the
+L<LWP::UserAgent> documentation for their implementation descriptions.
+
+This is not meant to be an inclusive list.  LWP::UA may have added
+others.
+
+=head2 $mech->head()
+
+Inherited from L<LWP::UserAgent>.
+
+=head2 $mech->post()
+
+Inherited from L<LWP::UserAgent>.
+
+=head2 $mech->mirror()
+
+Inherited from L<LWP::UserAgent>.
+
+=head2 $mech->simple_request()
+
+Inherited from L<LWP::UserAgent>.
+
+=head2 $mech->is_protocol_supported()
+
+Inherited from L<LWP::UserAgent>.
+
+=head2 $mech->prepare_request()
+
+Inherited from L<LWP::UserAgent>.
+
+=head2 $mech->progress()
+
+Inherited from L<LWP::UserAgent>.
 
 =head1 INTERNAL-ONLY METHODS
 
@@ -2472,6 +2513,7 @@ sub _reset_page {
     $self->{forms}        = undef;
     $self->{current_form} = undef;
     $self->{title}        = undef;
+    $self->{text}         = undef;
 
     return;
 }
@@ -2874,6 +2916,8 @@ Just like Mech, but using Microsoft Internet Explorer to do the work.
 Thanks to the numerous people who have helped out on WWW::Mechanize in
 one way or another, including
 Kirrily Robert for the original C<WWW::Automate>,
+Lyle Hopkins,
+Damien Clark,
 Ansgar Burchardt,
 Gisle Aas,
 Jeremy Ary,
