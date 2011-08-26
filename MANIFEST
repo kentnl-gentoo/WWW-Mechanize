@@ -84,5 +84,4 @@ t/upload.html
 t/upload.t
 t/warn.t
 t/warnings.t
-META.yml                                 Module YAML meta-data (added by MakeMaker)
-META.json                                Module JSON meta-data (added by MakeMaker)
+META.yml                                 Module meta-data (added by MakeMaker)
