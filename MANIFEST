@@ -52,6 +52,8 @@ t/live/wikipedia.t
 t/local/back.t
 t/local/click.t
 t/local/click_button.t
+t/local/content.t
+t/local/encoding.t
 t/local/failure.t
 t/local/follow.t
 t/local/form.t
@@ -84,4 +86,5 @@ t/upload.html
 t/upload.t
 t/warn.t
 t/warnings.t
-META.yml                                 Module meta-data (added by MakeMaker)
+META.yml                                 Module YAML meta-data (added by MakeMaker)
+META.json                                Module JSON meta-data (added by MakeMaker)
