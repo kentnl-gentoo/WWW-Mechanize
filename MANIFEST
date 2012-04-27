@@ -23,6 +23,7 @@ t/cookies.t
 t/credentials-api.t
 t/credentials.t
 t/die.t
+t/dump.t
 t/field.html
 t/field.t
 t/find_frame.html
@@ -73,6 +74,7 @@ t/new.t
 t/pod-coverage.t
 t/pod.t
 t/regex-error.t
+t/save_content.html
 t/save_content.t
 t/select.html
 t/select.t
