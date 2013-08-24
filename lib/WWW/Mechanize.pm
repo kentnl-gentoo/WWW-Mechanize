@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.72_02
+Version 1.73
 
 =cut
 
-our $VERSION = '1.72_02';
+our $VERSION = '1.73';
 
 =head1 SYNOPSIS
 
@@ -754,6 +754,14 @@ or
 
     $mech->follow_link( n => 3 );
 
+=item * the link with the url
+
+    $mech->follow_link( url => '/other/page' );
+
+or
+
+    $mech->follow_link( url => 'http://example.com/page' );
+
 =back
 
 Returns the result of the GET method (an HTTP::Response object) if
@@ -764,6 +772,7 @@ couldn't be found, returns undef.
 
 sub follow_link {
     my $self = shift;
+    $self->die( qq{Needs to get key-value pairs of parameters.} ) if @_ % 2;
     my %parms = ( n=>1, @_ );
 
     if ( $parms{n} eq 'all' ) {
@@ -2364,7 +2373,7 @@ supported.
 sub credentials {
     my $self = shift;
 
-    # The lastest LWP::UserAgent also supports 2 arguments,
+    # The latest LWP::UserAgent also supports 2 arguments,
     # in which case the first is host:port
     if (@_ == 4 || (@_ == 2 && $_[0] =~ /:\d+$/)) {
         return $self->SUPER::credentials(@_);
@@ -2402,7 +2411,7 @@ sub clear_credentials {
 
 =head1 INHERITED UNCHANGED LWP::UserAgent METHODS
 
-As a sublass of L<LWP::UserAgent>, WWW::Mechanize inherits all of
+As a subclass of L<LWP::UserAgent>, WWW::Mechanize inherits all of
 L<LWP::UserAgent>'s methods.  Many of which are overridden or
 extended. The following methods are inherited unchanged. View the
 L<LWP::UserAgent> documentation for their implementation descriptions.
@@ -2846,7 +2855,7 @@ __END__
 WWW::Mechanize is hosted at GitHub, though the bug tracker still
 lives at Google Code.
 
-Repository: L<https://github.com/bestpractical/www-mechanize/>.
+Repository: L<https://github.com/libwww-perl/WWW-Mechanize>.
 Bugs: L<http://code.google.com/p/www-mechanize/issues>.
 
 =head1 OTHER DOCUMENTATION
