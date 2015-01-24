@@ -61,15 +61,22 @@ if ( $^O !~ /Win32/ ) {
 
 if ( $ExtUtils::MakeMaker::VERSION ge '6.45_01' ) {
     $parms->{META_MERGE} = {
+        'meta-spec' => { version => 2 },
         resources => {
             license     => 'http://dev.perl.org/licenses/',
-            homepage    => 'https://github.com/bestpractical/www-mechanize',
-            bugtracker  => 'http://code.google.com/p/www-mechanize/issues/list',
-            Repository  => 'https://github.com/bestpractical/www-mechanize',
-            MailingList => 'http://groups.google.com/group/www-mechanize-users',
+            homepage    => 'https://github.com/libwww-perl/WWW-Mechanize',
+            repository => {
+                url => 'https://github.com/libwww-perl/WWW-Mechanize.git',
+                web => 'https://github.com/libwww-perl/WWW-Mechanize',
+                type => 'git',
+            },
+            bugtracker => {
+                web => 'http://code.google.com/p/www-mechanize/issues/list',
+            },
+            x_MailingList => 'http://groups.google.com/group/www-mechanize-users',
         }
     };
-    $parms->{LICENSE} = 'perl';
+    $parms->{LICENSE} = 'perl_5';
 }
 if ( $ExtUtils::MakeMaker::VERSION ge '6.47_02' ) {
     $parms->{MIN_PERL_VERSION} = 5.008;

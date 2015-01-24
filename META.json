@@ -4,7 +4,7 @@
       "Jesse Vincent <jesse@bestpractical.com>"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "ExtUtils::MakeMaker version 6.72, CPAN::Meta::Converter version 2.132140",
+   "generated_by" : "ExtUtils::MakeMaker version 7.04, CPAN::Meta::Converter version 2.143240",
    "license" : [
       "perl_5"
    ],
@@ -63,12 +63,16 @@
       "bugtracker" : {
          "web" : "http://code.google.com/p/www-mechanize/issues/list"
       },
-      "homepage" : "https://github.com/bestpractical/www-mechanize",
+      "homepage" : "https://github.com/libwww-perl/WWW-Mechanize",
       "license" : [
          "http://dev.perl.org/licenses/"
       ],
-      "x_MailingList" : "http://groups.google.com/group/www-mechanize-users",
-      "x_Repository" : "https://github.com/bestpractical/www-mechanize"
+      "repository" : {
+         "type" : "git",
+         "url" : "https://github.com/libwww-perl/WWW-Mechanize.git",
+         "web" : "https://github.com/libwww-perl/WWW-Mechanize"
+      },
+      "x_MailingList" : "http://groups.google.com/group/www-mechanize-users"
    },
-   "version" : "1.73"
+   "version" : "1.74"
 }

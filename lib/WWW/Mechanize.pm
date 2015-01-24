@@ -6,11 +6,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-Version 1.73
+Version 1.74
 
 =cut
 
-our $VERSION = '1.73';
+our $VERSION = '1.74';
 
 =head1 SYNOPSIS
 
@@ -2920,7 +2920,7 @@ Mechanize distribution.
 
 =over 4
 
-=item * L<http://www-128.ibm.com/developerworks/linux/library/wa-perlsecure.html>
+=item * L<http://www.ibm.com/developerworks/linux/library/wa-perlsecure/>
 
 IBM article "Secure Web site access with Perl"
 
@@ -2957,7 +2957,7 @@ method existed at press time.
 
 WWW::Mechanize on the Perl Advent Calendar, by Mark Fowler.
 
-=item * L<http://www.linux-magazin.de/Artikel/ausgabe/2004/03/perl/perl.html>
+=item * L<http://www.linux-magazin.de/Ausgaben/2004/03/Datenruessel/%28language%29/ger-DE>
 
 Michael Schilli's article on Mech and L<WWW::Mechanize::Shell> for the
 German magazine I<Linux Magazin>.
@@ -2989,6 +2989,8 @@ Just like Mech, but using Microsoft Internet Explorer to do the work.
 =item * L<WWW::Hotmail>
 
 =item * L<WWW::Mechanize::Cached>
+
+=item * L<WWW::Mechanize::Cached::GZip>
 
 =item * L<WWW::Mechanize::FormFiller>
 
