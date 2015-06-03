@@ -7,7 +7,6 @@ lib/WWW/Mechanize/Examples.pod
 lib/WWW/Mechanize/FAQ.pod
 lib/WWW/Mechanize/Image.pm
 lib/WWW/Mechanize/Link.pm
-Makefile.old
 Makefile.PL
 MANIFEST			This list of files
 MANIFEST.SKIP

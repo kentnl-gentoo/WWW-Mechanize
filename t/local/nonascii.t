@@ -1,6 +1,3 @@
-#!perl
-
-use utf8;
 use warnings;
 use strict;
 use Test::More tests => 5;

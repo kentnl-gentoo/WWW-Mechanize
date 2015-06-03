@@ -4,7 +4,7 @@
       "Jesse Vincent <jesse@bestpractical.com>"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "ExtUtils::MakeMaker version 7.04, CPAN::Meta::Converter version 2.143240",
+   "generated_by" : "ExtUtils::MakeMaker version 7.052, CPAN::Meta::Converter version 2.150001",
    "license" : [
       "perl_5"
    ],
@@ -32,6 +32,7 @@
       },
       "runtime" : {
          "requires" : {
+            "CGI" : "4.08",
             "Carp" : "0",
             "File::Temp" : "0",
             "FindBin" : "0",
@@ -74,5 +75,25 @@
       },
       "x_MailingList" : "http://groups.google.com/group/www-mechanize-users"
    },
-   "version" : "1.74"
+   "version" : "1.75",
+   "x_contributors" : [
+      "Andy Lester <andy@petdance.com>",
+      "Mark Stosberg <mark@summersault.com>",
+      "Karen Etheridge <ether@cpan.org>",
+      "Jesse Vincent <jesse@bestpractical.com>",
+      "Max Maischein <corion@cpan.org>",
+      "Flavio Poletti <flavio@polettix.it>",
+      "Gabor Szabo <szabgab@gmail.com>",
+      "David Steinbrunner <dsteinbrunner@pobox.com>",
+      "Matt S Trout <mst@shadowcat.co.uk>",
+      "sunnavy <sunnavy@bestpractical.com>",
+      "Jason May <jasonmay@bestpractical.com>",
+      "Alexandr Ciornii <alexchorny@gmail.com>",
+      "Kirrily 'Skud' Robert <skud@infotrope.net>",
+      "Olaf Alders <olaf@wundersolutions.com>",
+      "David Precious <davidp@preshweb.co.uk>",
+      "Ville Skyttä <ville.skytta@iki.fi>",
+      "Lars Dɪᴇᴄᴋᴏᴡ 迪拉斯 <daxim@cpan.org>"
+   ]
 }
+
