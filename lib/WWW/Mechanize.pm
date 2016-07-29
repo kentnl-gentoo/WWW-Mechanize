@@ -1,132 +1,13 @@
 package WWW::Mechanize;
 
-=head1 NAME
-
-WWW::Mechanize - Handy web browsing in a Perl object
-
-=head1 VERSION
-
-Version 1.75
-
-=cut
-
-our $VERSION = '1.75';
-
-=head1 SYNOPSIS
-
-C<WWW::Mechanize>, or Mech for short, is a Perl module for stateful
-programmatic web browsing, used for automating interaction with
-websites.
-
-Features include:
-
-=over 4
-
-=item * All HTTP methods
-
-=item * High-level hyperlink and HTML form support, without having to parse HTML yourself
-
-=item * SSL support
-
-=item * Automatic cookies
-
-=item * Custom HTTP headers
-
-=item * Automatic handling of redirections
-
-=item * Proxies
-
-=item * HTTP authentication
-
-=back
-
-Mech supports performing a sequence of page fetches including
-following links and submitting forms. Each fetched page is parsed
-and its links and forms are extracted. A link or a form can be
-selected, form fields can be filled and the next page can be fetched.
-Mech also stores a history of the URLs you've visited, which can
-be queried and revisited.
-
-    use WWW::Mechanize;
-    my $mech = WWW::Mechanize->new();
-
-    $mech->get( $url );
-
-    $mech->follow_link( n => 3 );
-    $mech->follow_link( text_regex => qr/download this/i );
-    $mech->follow_link( url => 'http://host.com/index.html' );
-
-    $mech->submit_form(
-        form_number => 3,
-        fields      => {
-            username    => 'mungo',
-            password    => 'lost-and-alone',
-        }
-    );
-
-    $mech->submit_form(
-        form_name => 'search',
-        fields    => { query  => 'pot of gold', },
-        button    => 'Search Now'
-    );
+#ABSTRACT: Handy web browsing in a Perl object
 
 
-Mech is well suited for use in testing web applications.  If you use
-one of the Test::*, like L<Test::HTML::Lint> modules, you can check the
-fetched content and use that as input to a test call.
-
-    use Test::More;
-    like( $mech->content(), qr/$expected/, "Got expected content" );
-
-Each page fetch stores its URL in a history stack which you can
-traverse.
-
-    $mech->back();
-
-If you want finer control over your page fetching, you can use
-these methods. C<follow_link> and C<submit_form> are just high
-level wrappers around them.
-
-    $mech->find_link( n => $number );
-    $mech->form_number( $number );
-    $mech->form_name( $name );
-    $mech->field( $name, $value );
-    $mech->set_fields( %field_values );
-    $mech->set_visible( @criteria );
-    $mech->click( $button );
-
-L<WWW::Mechanize> is a proper subclass of L<LWP::UserAgent> and
-you can also use any of L<LWP::UserAgent>'s methods.
-
-    $mech->add_header($name => $value);
-
-Please note that Mech does NOT support JavaScript, you need additional software
-for that. Please check L<WWW::Mechanize::FAQ/"JavaScript"> for more.
-
-=head1 IMPORTANT LINKS
-
-=over 4
-
-=item * L<http://code.google.com/p/www-mechanize/issues/list>
-
-The queue for bugs & enhancements in WWW::Mechanize and
-Test::WWW::Mechanize.  Please note that the queue at L<http://rt.cpan.org>
-is no longer maintained.
-
-=item * L<http://search.cpan.org/dist/WWW-Mechanize/>
-
-The CPAN documentation page for Mechanize.
-
-=item * L<http://search.cpan.org/dist/WWW-Mechanize/lib/WWW/Mechanize/FAQ.pod>
-
-Frequently asked questions.  Make sure you read here FIRST.
-
-=back
-
-=cut
 
 use strict;
 use warnings;
+
+our $VERSION = 1.76;
 
 use HTTP::Request 1.30;
 use LWP::UserAgent 5.827;
@@ -140,100 +21,6 @@ BEGIN {
     $HAS_ZLIB = eval 'use Compress::Zlib (); 1;';
 }
 
-=head1 CONSTRUCTOR AND STARTUP
-
-=head2 new()
-
-Creates and returns a new WWW::Mechanize object, hereafter referred to as
-the "agent".
-
-    my $mech = WWW::Mechanize->new()
-
-The constructor for WWW::Mechanize overrides two of the parms to the
-LWP::UserAgent constructor:
-
-    agent => 'WWW-Mechanize/#.##'
-    cookie_jar => {}    # an empty, memory-only HTTP::Cookies object
-
-You can override these overrides by passing parms to the constructor,
-as in:
-
-    my $mech = WWW::Mechanize->new( agent => 'wonderbot 1.01' );
-
-If you want none of the overhead of a cookie jar, or don't want your
-bot accepting cookies, you have to explicitly disallow it, like so:
-
-    my $mech = WWW::Mechanize->new( cookie_jar => undef );
-
-Here are the parms that WWW::Mechanize recognizes.  These do not include
-parms that L<LWP::UserAgent> recognizes.
-
-=over 4
-
-=item * C<< autocheck => [0|1] >>
-
-Checks each request made to see if it was successful.  This saves
-you the trouble of manually checking yourself.  Any errors found
-are errors, not warnings.
-
-The default value is ON, unless it's being subclassed, in which
-case it is OFF.  This means that standalone L<WWW::Mechanize>instances
-have autocheck turned on, which is protective for the vast majority
-of Mech users who don't bother checking the return value of get()
-and post() and can't figure why their code fails. However, if
-L<WWW::Mechanize> is subclassed, such as for L<Test::WWW::Mechanize>
-or L<Test::WWW::Mechanize::Catalyst>, this may not be an appropriate
-default, so it's off.
-
-=item * C<< noproxy => [0|1] >>
-
-Turn off the automatic call to the L<LWP::UserAgent> C<env_proxy> function.
-
-This needs to be explicitly turned off if you're using L<Crypt::SSLeay> to
-access a https site via a proxy server.  Note: you still need to set your
-HTTPS_PROXY environment variable as appropriate.
-
-=item * C<< onwarn => \&func >>
-
-Reference to a C<warn>-compatible function, such as C<< L<Carp>::carp >>,
-that is called when a warning needs to be shown.
-
-If this is set to C<undef>, no warnings will ever be shown.  However,
-it's probably better to use the C<quiet> method to control that behavior.
-
-If this value is not passed, Mech uses C<Carp::carp> if L<Carp> is
-installed, or C<CORE::warn> if not.
-
-=item * C<< onerror => \&func >>
-
-Reference to a C<die>-compatible function, such as C<< L<Carp>::croak >>,
-that is called when there's a fatal error.
-
-If this is set to C<undef>, no errors will ever be shown.
-
-If this value is not passed, Mech uses C<Carp::croak> if L<Carp> is
-installed, or C<CORE::die> if not.
-
-=item * C<< quiet => [0|1] >>
-
-Don't complain on warnings.  Setting C<< quiet => 1 >> is the same as
-calling C<< $mech->quiet(1) >>.  Default is off.
-
-=item * C<< stack_depth => $value >>
-
-Sets the depth of the page stack that keeps track of all the
-downloaded pages. Default is effectively infinite stack size.  If
-the stack is eating up your memory, then set this to a smaller
-number, say 5 or 10.  Setting this to zero means Mech will keep no
-history.
-
-=back
-
-To support forms, WWW::Mechanize's constructor pushes POST
-on to the agent's C<requests_redirectable> list (see also
-L<LWP::UserAgent>.)
-
-=cut
 
 sub new {
     my $class = shift;
@@ -285,54 +72,6 @@ sub new {
     return $self;
 }
 
-=head2 $mech->agent_alias( $alias )
-
-Sets the user agent string to the expanded version from a table of actual user strings.
-I<$alias> can be one of the following:
-
-=over 4
-
-=item * Windows IE 6
-
-=item * Windows Mozilla
-
-=item * Mac Safari
-
-=item * Mac Mozilla
-
-=item * Linux Mozilla
-
-=item * Linux Konqueror
-
-=back
-
-then it will be replaced with a more interesting one.  For instance,
-
-    $mech->agent_alias( 'Windows IE 6' );
-
-sets your User-Agent to
-
-    Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)
-
-The list of valid aliases can be returned from C<known_agent_aliases()>.  The current list is:
-
-=over
-
-=item * Windows IE 6
-
-=item * Windows Mozilla
-
-=item * Mac Safari
-
-=item * Mac Mozilla
-
-=item * Linux Mozilla
-
-=item * Linux Konqueror
-
-=back
-
-=cut
 
 my %known_agents = (
     'Windows IE 6'      => 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)',
@@ -356,41 +95,11 @@ sub agent_alias {
     }
 }
 
-=head2 known_agent_aliases()
-
-Returns a list of all the agent aliases that Mech knows about.
-
-=cut
 
 sub known_agent_aliases {
     return sort keys %known_agents;
 }
 
-=head1 PAGE-FETCHING METHODS
-
-=head2 $mech->get( $uri )
-
-Given a URL/URI, fetches it.  Returns an L<HTTP::Response> object.
-I<$uri> can be a well-formed URL string, a L<URI> object, or a
-L<WWW::Mechanize::Link> object.
-
-The results are stored internally in the agent object, but you don't
-know that.  Just use the accessors listed below.  Poking at the
-internals is deprecated and subject to change in the future.
-
-C<get()> is a well-behaved overloaded version of the method in
-L<LWP::UserAgent>.  This lets you do things like
-
-    $mech->get( $uri, ':content_file' => $tempfile );
-
-and you can rest assured that the parms will get filtered down
-appropriately.
-
-B<NOTE:> Because C<:content_file> causes the page contents to be
-stored in a file instead of the response object, some Mech functions
-that expect it to be there won't work as expected. Use with caution.
-
-=cut
 
 sub get {
     my $self = shift;
@@ -407,13 +116,6 @@ sub get {
     return $self->SUPER::get( $uri->as_string, @_ );
 }
 
-=head2 $mech->put( $uri, content => $content )
-
-PUTs I<$content> to $uri.  Returns an L<HTTP::Response> object.
-I<$uri> can be a well-formed URI string, a L<URI> object, or a
-L<WWW::Mechanize::Link> object.
-
-=cut
 
 sub put {
     my $self = shift;
@@ -439,15 +141,6 @@ sub _SUPER_put {
     return $self->request( HTTP::Request::Common::PUT( @parameters ), @suff );
 }
 
-=head2 $mech->reload()
-
-Acts like the reload button in a browser: repeats the current
-request. The history (as per the L</back> method) is not altered.
-
-Returns the L<HTTP::Response> object from the reload, or C<undef>
-if there's no current request.
-
-=cut
 
 sub reload {
     my $self = shift;
@@ -457,15 +150,6 @@ sub reload {
     return $self->_update_page( $req, $self->_make_request( $req, @_ ) );
 }
 
-=head2 $mech->back()
-
-The equivalent of hitting the "back" button in a browser.  Returns to
-the previous page.  Won't go back past the first page. (Really, what
-would it do if it could?)
-
-Returns true if it could go back, or false if not.
-
-=cut
 
 sub back {
     my $self = shift;
@@ -482,16 +166,38 @@ sub back {
     return 1;
 }
 
-=head1 STATUS METHODS
 
-=head2 $mech->success()
+sub history_count {
+    my $self = shift;
 
-Returns a boolean telling whether the last request was successful.
-If there hasn't been an operation yet, returns false.
+    # If we don't have a "current" page, we certainly don't have any previous
+    # ones.
+    return 0 unless $self->{req} && $self->{res};
 
-This is a convenience function that wraps C<< $mech->res->is_success >>.
+    my $stack = $self->{page_stack};
 
-=cut
+    return 1 unless $stack;
+
+    return 1 + @$stack;
+}
+
+
+sub history {
+    my $self = shift;
+    my $n    = shift;
+
+    return undef unless $self->{req} && $self->{res};
+
+    if ($n == 0) {
+      return { req => $self->{req}, res => $self->{res} };
+    }
+
+    my $stack = $self->{page_stack};
+    return undef unless $stack && @$stack >= $n;
+
+    return { req => $stack->[-$n]{req}, res => $stack->[-$n]{res} };
+}
+
 
 sub success {
     my $self = shift;
@@ -500,53 +206,6 @@ sub success {
 }
 
 
-=head2 $mech->uri()
-
-Returns the current URI as a L<URI> object. This object stringifies
-to the URI itself.
-
-=head2 $mech->response() / $mech->res()
-
-Return the current response as an L<HTTP::Response> object.
-
-Synonym for C<< $mech->response() >>
-
-=head2 $mech->status()
-
-Returns the HTTP status code of the response.  This is a 3-digit
-number like 200 for OK, 404 for not found, and so on.
-
-=head2 $mech->ct() / $mech->content_type()
-
-Returns the content type of the response.
-
-=head2 $mech->base()
-
-Returns the base URI for the current response
-
-=head2 $mech->forms()
-
-When called in a list context, returns a list of the forms found in
-the last fetched page. In a scalar context, returns a reference to
-an array with those forms. The forms returned are all L<HTML::Form>
-objects.
-
-=head2 $mech->current_form()
-
-Returns the current form as an L<HTML::Form> object.
-
-=head2 $mech->links()
-
-When called in a list context, returns a list of the links found in the
-last fetched page.  In a scalar context it returns a reference to an array
-with those links.  Each link is a L<WWW::Mechanize::Link> object.
-
-=head2 $mech->is_html()
-
-Returns true/false on whether our content is HTML, according to the
-HTTP headers.
-
-=cut
 
 sub uri {
     my $self = shift;
@@ -565,12 +224,6 @@ sub is_html {
         ($self->ct eq 'text/html' || $self->ct eq 'application/xhtml+xml');
 }
 
-=head2 $mech->title()
-
-Returns the contents of the C<< <TITLE> >> tag, as parsed by
-L<HTML::HeadParser>.  Returns undef if the content is not HTML.
-
-=cut
 
 sub title {
     my $self = shift;
@@ -586,58 +239,6 @@ sub title {
     return $self->{title};
 }
 
-=head1 CONTENT-HANDLING METHODS
-
-=head2 $mech->content(...)
-
-Returns the content that the mech uses internally for the last page
-fetched. Ordinarily this is the same as
-C<< $mech->response()->decoded_content() >>,
-but this may differ for HTML documents if L</update_html> is
-overloaded (in which case the value passed to the base-class
-implementation of same will be returned), and/or extra named arguments
-are passed to I<content()>:
-
-=over 2
-
-=item I<< $mech->content( format => 'text' ) >>
-
-Returns a text-only version of the page, with all HTML markup
-stripped. This feature requires I<HTML::TreeBuilder> to be installed,
-or a fatal error will be thrown. This works only if the contents are
-HTML.
-
-=item I<< $mech->content( base_href => [$base_href|undef] ) >>
-
-Returns the HTML document, modified to contain a
-C<< <base href="$base_href"> >> mark-up in the header.
-I<$base_href> is C<< $mech->base() >> if not specified. This is
-handy to pass the HTML to e.g. L<HTML::Display>. This works only if
-the contents are HTML.
-
-
-=item I<< $mech->content( raw => 1 ) >>
-
-Returns C<< $self->response()->content() >>, i.e. the raw contents from the
-response.
-
-=item I<< $mech->content( decoded_by_headers => 1 ) >>
-
-Returns the content after applying all C<Content-Encoding> headers but
-with not additional mangling.
-
-=item I<< $mech->content( charset => $charset ) >>
-
-Returns C<< $self->response()->decoded_content(charset => $charset) >>
-(see L<HTTP::Response> for details).
-
-=back
-
-To preserve backwards compatibility, additional parameters will be
-ignored unless none of C<< raw | decoded_by_headers | charset >> is
-specified and the text is HTML, in which case an error will be triggered.
-
-=cut
 
 sub content {
     my $self = shift;
@@ -674,16 +275,6 @@ sub content {
     return $content;
 }
 
-=head2 $mech->text()
-
-Returns the text of the current HTML content.  If the content isn't
-HTML, $mech will die.
-
-The text is extracted by parsing the content, and then the extracted
-text is cached, so don't worry about performance of calling this
-repeatedly.
-
-=cut
 
 sub text {
     my $self = shift;
@@ -710,15 +301,6 @@ sub _check_unhandled_parms {
     }
 }
 
-=head1 LINK METHODS
-
-=head2 $mech->links()
-
-Lists all the links on the current page.  Each link is a
-WWW::Mechanize::Link object. In list context, returns a list of all
-links.  In scalar context, returns an array reference of all links.
-
-=cut
 
 sub links {
     my $self = shift;
@@ -729,46 +311,6 @@ sub links {
     return $self->{links};
 }
 
-=head2 $mech->follow_link(...)
-
-Follows a specified link on the page.  You specify the match to be
-found using the same parms that C<L<find_link()>> uses.
-
-Here some examples:
-
-=over 4
-
-=item * 3rd link called "download"
-
-    $mech->follow_link( text => 'download', n => 3 );
-
-=item * first link where the URL has "download" in it, regardless of case:
-
-    $mech->follow_link( url_regex => qr/download/i );
-
-or
-
-    $mech->follow_link( url_regex => qr/(?i:download)/ );
-
-=item * 3rd link on the page
-
-    $mech->follow_link( n => 3 );
-
-=item * the link with the url
-
-    $mech->follow_link( url => '/other/page' );
-
-or
-
-    $mech->follow_link( url => 'http://example.com/page' );
-
-=back
-
-Returns the result of the GET method (an HTTP::Response object) if
-a link was found. If the page has no links, or the specified link
-couldn't be found, returns undef.
-
-=cut
 
 sub follow_link {
     my $self = shift;
@@ -792,112 +334,6 @@ sub follow_link {
     return;
 }
 
-=head2 $mech->find_link( ... )
-
-Finds a link in the currently fetched page. It returns a
-L<WWW::Mechanize::Link> object which describes the link.  (You'll
-probably be most interested in the C<url()> property.)  If it fails
-to find a link it returns undef.
-
-You can take the URL part and pass it to the C<get()> method.  If
-that's your plan, you might as well use the C<follow_link()> method
-directly, since it does the C<get()> for you automatically.
-
-Note that C<< <FRAME SRC="..."> >> tags are parsed out of the the HTML
-and treated as links so this method works with them.
-
-You can select which link to find by passing in one or more of these
-key/value pairs:
-
-=over 4
-
-=item * C<< text => 'string', >> and C<< text_regex => qr/regex/, >>
-
-C<text> matches the text of the link against I<string>, which must be an
-exact match.  To select a link with text that is exactly "download", use
-
-    $mech->find_link( text => 'download' );
-
-C<text_regex> matches the text of the link against I<regex>.  To select a
-link with text that has "download" anywhere in it, regardless of case, use
-
-    $mech->find_link( text_regex => qr/download/i );
-
-Note that the text extracted from the page's links are trimmed.  For
-example, C<< <a> foo </a> >> is stored as 'foo', and searching for
-leading or trailing spaces will fail.
-
-=item * C<< url => 'string', >> and C<< url_regex => qr/regex/, >>
-
-Matches the URL of the link against I<string> or I<regex>, as appropriate.
-The URL may be a relative URL, like F<foo/bar.html>, depending on how
-it's coded on the page.
-
-=item * C<< url_abs => string >> and C<< url_abs_regex => regex >>
-
-Matches the absolute URL of the link against I<string> or I<regex>,
-as appropriate.  The URL will be an absolute URL, even if it's relative
-in the page.
-
-=item * C<< name => string >> and C<< name_regex => regex >>
-
-Matches the name of the link against I<string> or I<regex>, as appropriate.
-
-=item * C<< id => string >> and C<< id_regex => regex >>
-
-Matches the attribute 'id' of the link against I<string> or
-I<regex>, as appropriate.
-
-=item * C<< class => string >> and C<< class_regex => regex >>
-
-Matches the attribute 'class' of the link against I<string> or
-I<regex>, as appropriate.
-
-=item * C<< tag => string >> and C<< tag_regex => regex >>
-
-Matches the tag that the link came from against I<string> or I<regex>,
-as appropriate.  The C<tag_regex> is probably most useful to check for
-more than one tag, as in:
-
-    $mech->find_link( tag_regex => qr/^(a|frame)$/ );
-
-The tags and attributes looked at are defined below, at
-L<< $mech->find_link() : link format >>.
-
-=back
-
-If C<n> is not specified, it defaults to 1.  Therefore, if you don't
-specify any parms, this method defaults to finding the first link on the
-page.
-
-Note that you can specify multiple text or URL parameters, which
-will be ANDed together.  For example, to find the first link with
-text of "News" and with "cnn.com" in the URL, use:
-
-    $mech->find_link( text => 'News', url_regex => qr/cnn\.com/ );
-
-The return value is a reference to an array containing a
-L<WWW::Mechanize::Link> object for every link in C<< $self->content >>.
-
-The links come from the following:
-
-=over 4
-
-=item C<< <a href=...> >>
-
-=item C<< <area href=...> >>
-
-=item C<< <frame src=...> >>
-
-=item C<< <iframe src=...> >>
-
-=item C<< <link href=...> >>
-
-=item C<< <meta content=...> >>
-
-=back
-
-=cut
 
 sub find_link {
     my $self = shift;
@@ -1003,52 +439,12 @@ sub _clean_keys {
 } # _clean_keys()
 
 
-=head2 $mech->find_all_links( ... )
-
-Returns all the links on the current page that match the criteria.  The
-method for specifying link criteria is the same as in C<L</find_link()>>.
-Each of the links returned is a L<WWW::Mechanize::Link> object.
-
-In list context, C<find_all_links()> returns a list of the links.
-Otherwise, it returns a reference to the list of links.
-
-C<find_all_links()> with no parameters returns all links in the
-page.
-
-=cut
 
 sub find_all_links {
     my $self = shift;
     return $self->find_link( @_, n=>'all' );
 }
 
-=head2 $mech->find_all_inputs( ... criteria ... )
-
-find_all_inputs() returns an array of all the input controls in the
-current form whose properties match all of the regexes passed in.
-The controls returned are all descended from HTML::Form::Input.
-
-If no criteria are passed, all inputs will be returned.
-
-If there is no current page, there is no form on the current
-page, or there are no submit controls in the current form
-then the return will be an empty array.
-
-You may use a regex or a literal string:
-
-    # get all textarea controls whose names begin with "customer"
-    my @customer_text_inputs = $mech->find_all_inputs(
-        type       => 'textarea',
-        name_regex => qr/^customer/,
-    );
-
-    # get all text or textarea controls called "customer"
-    my @customer_text_inputs = $mech->find_all_inputs(
-        type_regex => qr/^(text|textarea)$/,
-        name       => 'customer',
-    );
-
-=cut
 
 sub find_all_inputs {
     my $self = shift;
@@ -1075,13 +471,6 @@ sub find_all_inputs {
     return @found;
 }
 
-=head2 $mech->find_all_submits( ... criteria ... )
-
-C<find_all_submits()> does the same thing as C<find_all_inputs()>
-except that it only returns controls that are submit controls,
-ignoring other types of input controls like text and checkboxes.
-
-=cut
 
 sub find_all_submits {
     my $self = shift;
@@ -1090,15 +479,6 @@ sub find_all_submits {
 }
 
 
-=head1 IMAGE METHODS
-
-=head2 $mech->images
-
-Lists all the images on the current page.  Each image is a
-WWW::Mechanize::Image object. In list context, returns a list of all
-images.  In scalar context, returns an array reference of all images.
-
-=cut
 
 sub images {
     my $self = shift;
@@ -1109,68 +489,6 @@ sub images {
     return $self->{images};
 }
 
-=head2 $mech->find_image()
-
-Finds an image in the current page. It returns a
-L<WWW::Mechanize::Image> object which describes the image.  If it fails
-to find an image it returns undef.
-
-You can select which image to find by passing in one or more of these
-key/value pairs:
-
-=over 4
-
-=item * C<< alt => 'string' >> and C<< alt_regex => qr/regex/, >>
-
-C<alt> matches the ALT attribute of the image against I<string>, which must be an
-exact match. To select a image with an ALT tag that is exactly "download", use
-
-    $mech->find_image( alt => 'download' );
-
-C<alt_regex> matches the ALT attribute of the image  against a regular
-expression.  To select an image with an ALT attribute that has "download"
-anywhere in it, regardless of case, use
-
-    $mech->find_image( alt_regex => qr/download/i );
-
-=item * C<< url => 'string', >> and C<< url_regex => qr/regex/, >>
-
-Matches the URL of the image against I<string> or I<regex>, as appropriate.
-The URL may be a relative URL, like F<foo/bar.html>, depending on how
-it's coded on the page.
-
-=item * C<< url_abs => string >> and C<< url_abs_regex => regex >>
-
-Matches the absolute URL of the image against I<string> or I<regex>,
-as appropriate.  The URL will be an absolute URL, even if it's relative
-in the page.
-
-=item * C<< tag => string >> and C<< tag_regex => regex >>
-
-Matches the tag that the image came from against I<string> or I<regex>,
-as appropriate.  The C<tag_regex> is probably most useful to check for
-more than one tag, as in:
-
-    $mech->find_image( tag_regex => qr/^(img|input)$/ );
-
-The tags supported are C<< <img> >> and C<< <input> >>.
-
-=back
-
-If C<n> is not specified, it defaults to 1.  Therefore, if you don't
-specify any parms, this method defaults to finding the first image on the
-page.
-
-Note that you can specify multiple ALT or URL parameters, which
-will be ANDed together.  For example, to find the first image with
-ALT text of "News" and with "cnn.com" in the URL, use:
-
-    $mech->find_image( image => 'News', url_regex => qr/cnn\.com/ );
-
-The return value is a reference to an array containing a
-L<WWW::Mechanize::Image> object for every image in C<< $self->content >>.
-
-=cut
 
 sub find_image {
     my $self = shift;
@@ -1227,37 +545,12 @@ sub _match_any_image_parms {
 }
 
 
-=head2 $mech->find_all_images( ... )
-
-Returns all the images on the current page that match the criteria.  The
-method for specifying image criteria is the same as in C<L</find_image()>>.
-Each of the images returned is a L<WWW::Mechanize::Image> object.
-
-In list context, C<find_all_images()> returns a list of the images.
-Otherwise, it returns a reference to the list of images.
-
-C<find_all_images()> with no parameters returns all images in the page.
-
-=cut
 
 sub find_all_images {
     my $self = shift;
     return $self->find_image( @_, n=>'all' );
 }
 
-=head1 FORM METHODS
-
-These methods let you work with the forms on a page.  The idea is
-to choose a form that you'll later work with using the field methods
-below.
-
-=head2 $mech->forms
-
-Lists all the forms on the current page.  Each form is an L<HTML::Form>
-object.  In list context, returns a list of all forms.  In scalar
-context, returns an array reference of all forms.
-
-=cut
 
 sub forms {
     my $self = shift;
@@ -1278,20 +571,6 @@ sub current_form {
     return $self->{current_form};
 }
 
-=head2 $mech->form_number($number)
-
-Selects the I<number>th form on the page as the target for subsequent
-calls to C<L</field()>> and C<L</click()>>.  Also returns the form that was
-selected.
-
-If it is found, the form is returned as an L<HTML::Form> object and set internally
-for later use with Mech's form methods such as C<L</field()>> and C<L</click()>>.
-
-Emits a warning and returns undef if no form is found.
-
-The first form is number 1, not zero.
-
-=cut
 
 sub form_number {
     my ($self, $form) = @_;
@@ -1306,19 +585,6 @@ sub form_number {
     return;
 }
 
-=head2 $mech->form_name( $name )
-
-Selects a form by name.  If there is more than one form on the page
-with that name, then the first one is used, and a warning is
-generated.
-
-If it is found, the form is returned as an L<HTML::Form> object and
-set internally for later use with Mech's form methods such as
-C<L</field()>> and C<L</click()>>.
-
-Returns undef if no form is found.
-
-=cut
 
 sub form_name {
     my ($self, $form) = @_;
@@ -1337,18 +603,6 @@ sub form_name {
     return;
 }
 
-=head2 $mech->form_id( $name )
-
-Selects a form by ID.  If there is more than one form on the page
-with that ID, then the first one is used, and a warning is generated.
-
-If it is found, the form is returned as an L<HTML::Form> object and
-set internally for later use with Mech's form methods such as
-C<L</field()>> and C<L</click()>>.
-
-Returns undef if no form is found.
-
-=cut
 
 sub form_id {
     my ($self, $formid) = @_;
@@ -1367,20 +621,6 @@ sub form_id {
 }
 
 
-=head2 $mech->form_with_fields( @fields )
-
-Selects a form by passing in a list of field names it must contain.  If there
-is more than one form on the page with that matches, then the first one is used,
-and a warning is generated.
-
-If it is found, the form is returned as an L<HTML::Form> object and set internally
-for later used with Mech's form methods such as C<L</field()>> and C<L</click()>>.
-
-Returns undef if no form is found.
-
-Note that this functionality requires libwww-perl 5.69 or higher.
-
-=cut
 
 sub form_with_fields {
     my ($self, @fields) = @_;
@@ -1408,23 +648,6 @@ sub form_with_fields {
     }
 }
 
-=head1 FIELD METHODS
-
-These methods allow you to set the values of fields in a given form.
-
-=head2 $mech->field( $name, $value, $number )
-
-=head2 $mech->field( $name, \@values, $number )
-
-Given the name of a field, set its value to the value specified.
-This applies to the current form (as set by the L</form_name()> or
-L</form_number()> method or defaulting to the first form on the
-page).
-
-The optional I<$number> parameter is used to distinguish between two fields
-with the same name.  The fields are numbered from 1.
-
-=cut
 
 sub field {
     my ($self, $name, $value, $number) = @_;
@@ -1444,28 +667,6 @@ sub field {
     }
 }
 
-=head2 $mech->select($name, $value)
-
-=head2 $mech->select($name, \@values)
-
-Given the name of a C<select> field, set its value to the value
-specified.  If the field is not C<< <select multiple> >> and the
-C<$value> is an array, only the B<first> value will be set.  [Note:
-the documentation previously claimed that only the last value would
-be set, but this was incorrect.]  Passing C<$value> as a hash with
-an C<n> key selects an item by number (e.g.
-C<< {n => 3} >> or C<< {n => [2,4]} >>).
-The numbering starts at 1.  This applies to the current form.
-
-If you have a field with C<< <select multiple> >> and you pass a single
-C<$value>, then C<$value> will be added to the list of fields selected,
-without clearing the others.  However, if you pass an array reference,
-then all previously selected values will be cleared.
-
-Returns true on successfully setting the value. On failure, returns
-false and calls C<< $self>warn() >> with an error message.
-
-=cut
 
 sub select {
     my ($self, $name, $value) = @_;
@@ -1540,22 +741,6 @@ sub select {
     return 1;
 }
 
-=head2 $mech->set_fields( $name => $value ... )
-
-This method sets multiple fields of the current form. It takes a list
-of field name and value pairs. If there is more than one field with
-the same name, the first one found is set. If you want to select which
-of the duplicate field to set, use a value which is an anonymous array
-which has the field value and its number as the 2 elements.
-
-        # set the second foo field
-        $mech->set_fields( $name => [ 'foo', 2 ] );
-
-The fields are numbered from 1.
-
-This applies to the current form.
-
-=cut
 
 sub set_fields {
     my $self = shift;
@@ -1574,44 +759,6 @@ sub set_fields {
     } # while
 } # set_fields()
 
-=head2 $mech->set_visible( @criteria )
-
-This method sets fields of the current form without having to know
-their names.  So if you have a login screen that wants a username and
-password, you do not have to fetch the form and inspect the source (or
-use the F<mech-dump> utility, installed with WWW::Mechanize) to see
-what the field names are; you can just say
-
-    $mech->set_visible( $username, $password );
-
-and the first and second fields will be set accordingly.  The method
-is called set_I<visible> because it acts only on visible fields;
-hidden form inputs are not considered.  The order of the fields is
-the order in which they appear in the HTML source which is nearly
-always the order anyone viewing the page would think they are in,
-but some creative work with tables could change that; caveat user.
-
-Each element in C<@criteria> is either a field value or a field
-specifier.  A field value is a scalar.  A field specifier allows
-you to specify the I<type> of input field you want to set and is
-denoted with an arrayref containing two elements.  So you could
-specify the first radio button with
-
-    $mech->set_visible( [ radio => 'KCRW' ] );
-
-Field values and specifiers can be intermixed, hence
-
-    $mech->set_visible( 'fred', 'secret', [ option => 'Checking' ] );
-
-would set the first two fields to "fred" and "secret", and the I<next>
-C<OPTION> menu field to "Checking".
-
-The possible field specifier types are: "text", "password", "hidden",
-"textarea", "file", "image", "submit", "radio", "checkbox" and "option".
-
-C<set_visible> returns the number of values set.
-
-=cut
 
 sub set_visible {
     my $self = shift;
@@ -1647,14 +794,6 @@ sub set_visible {
     return $num_set;
 } # set_visible()
 
-=head2 $mech->tick( $name, $value [, $set] )
-
-"Ticks" the first checkbox that has both the name and value associated
-with it on the current form.  Dies if there is no named check box for
-that value.  Passing in a false value as the third optional argument
-will cause the checkbox to be unticked.
-
-=cut
 
 sub tick {
     my $self = shift;
@@ -1683,30 +822,11 @@ sub tick {
     $self->warn( qq{No checkbox "$name" for value "$value" in form} );
 } # tick()
 
-=head2 $mech->untick($name, $value)
-
-Causes the checkbox to be unticked.  Shorthand for
-C<tick($name,$value,undef)>
-
-=cut
 
 sub untick {
     shift->tick(shift,shift,undef);
 }
 
-=head2 $mech->value( $name [, $number] )
-
-Given the name of a field, return its value. This applies to the current
-form.
-
-The optional I<$number> parameter is used to distinguish between two fields
-with the same name.  The fields are numbered from 1.
-
-If the field is of type file (file upload field), the value is always
-cleared to prevent remote sites from downloading your local files.
-To upload a file, specify its file name explicitly.
-
-=cut
 
 sub value {
     my $self = shift;
@@ -1722,19 +842,6 @@ sub value {
     }
 } # value
 
-=head2 $mech->click( $button [, $x, $y] )
-
-Has the effect of clicking a button on the current form.  The first
-argument is the name of the button to be clicked.  The second and
-third arguments (optional) allow you to specify the (x,y) coordinates
-of the click.
-
-If there is only one button on the form, C<< $mech->click() >> with
-no arguments simply clicks that one button.
-
-Returns an L<HTTP::Response> object.
-
-=cut
 
 sub click {
     my ($self, $button, $x, $y) = @_;
@@ -1743,53 +850,13 @@ sub click {
     return $self->request( $request );
 }
 
-=head2 $mech->click_button( ... )
-
-Has the effect of clicking a button on the current form by specifying
-its name, value, or index.  Its arguments are a list of key/value
-pairs.  Only one of name, number, input or value must be specified in
-the keys.
-
-=over 4
-
-=item * C<< name => name >>
-
-Clicks the button named I<name> in the current form.
-
-=item * C<< number => n >>
-
-Clicks the I<n>th button in the current form. Numbering starts at 1.
-
-=item * C<< value => value >>
-
-Clicks the button with the value I<value> in the current form.
-
-=item * C<< input => $inputobject >>
-
-Clicks on the button referenced by $inputobject, an instance of
-L<HTML::Form::SubmitInput> obtained e.g. from
-
-    $mech->current_form()->find_input( undef, 'submit' )
-
-$inputobject must belong to the current form.
-
-=item * C<< x => x >>
-
-=item * C<< y => y >>
-
-These arguments (optional) allow you to specify the (x,y) coordinates
-of the click.
-
-=back
-
-=cut
 
 sub click_button {
     my $self = shift;
     my %args = @_;
 
     for ( keys %args ) {
-        if ( !/^(number|name|value|input|x|y)$/ ) {
+        if ( !/^(number|name|value|id|input|x|y)$/ ) {
             $self->warn( qq{Unknown click_button parameter "$_"} );
         }
     }
@@ -1803,6 +870,12 @@ sub click_button {
     my $request;
     if ( $args{name} ) {
         $request = $form->click( $args{name}, $args{x}, $args{y} );
+    }
+    # 0 is a valid id in HTML5
+    elsif ( defined $args{id} ) {
+        # HTML::Form expects ids to be prefixed with '#'
+        my $input = $form->find_input('#' . $args{id});
+        $request = $input->click( $form, $args{x}, $args{y} );
     }
     elsif ( $args{number} ) {
         my $input = $form->find_input( undef, 'submit', $args{number} );
@@ -1825,17 +898,6 @@ sub click_button {
     return $self->request( $request );
 }
 
-=head2 $mech->submit()
-
-Submits the page, without specifying a button to click.  Actually,
-no button is clicked at all.
-
-Returns an L<HTTP::Response> object.
-
-This used to be a synonym for C<< $mech->click( 'submit' ) >>, but is no
-longer so.
-
-=cut
 
 sub submit {
     my $self = shift;
@@ -1844,65 +906,6 @@ sub submit {
     return $self->request( $request );
 }
 
-=head2 $mech->submit_form( ... )
-
-This method lets you select a form from the previously fetched page,
-fill in its fields, and submit it. It combines the form_number/form_name,
-set_fields and click methods into one higher level call. Its arguments
-are a list of key/value pairs, all of which are optional.
-
-=over 4
-
-=item * C<< fields => \%fields >>
-
-Specifies the fields to be filled in the current form.
-
-=item * C<< with_fields => \%fields >>
-
-Probably all you need for the common case. It combines a smart form selector
-and data setting in one operation. It selects the first form that contains all
-fields mentioned in C<\%fields>.  This is nice because you don't need to know
-the name or number of the form to do this.
-
-(calls C<L</form_with_fields()>> and C<L</set_fields()>>).
-
-If you choose this, the form_number, form_name, form_id and fields options will be ignored.
-
-=item * C<< form_number => n >>
-
-Selects the I<n>th form (calls C<L</form_number()>>).  If this parm is not
-specified, the currently-selected form is used.
-
-=item * C<< form_name => name >>
-
-Selects the form named I<name> (calls C<L</form_name()>>)
-
-=item * C<< form_id => ID >>
-
-Selects the form with ID I<ID> (calls C<L</form_id()>>)
-
-=item * C<< button => button >>
-
-Clicks on button I<button> (calls C<L</click()>>)
-
-=item * C<< x => x, y => y >>
-
-Sets the x or y values for C<L</click()>>
-
-=back
-
-If no form is selected, the first form found is used.
-
-If I<button> is not passed, then the C<L</submit()>> method is used instead.
-
-If you want to submit a file and get its content from a scalar rather
-than a file in the filesystem, you can use:
-
-    $mech->submit_form(with_fields => { logfile => [ [ undef, 'whatever', Content => $content ], 1 ] } );
-
-Returns an L<HTTP::Response> object.
-
-=cut
 
 sub submit_form {
     my( $self, %args ) = @_;
@@ -1958,29 +961,6 @@ sub submit_form {
     return $response;
 }
 
-=head1 MISCELLANEOUS METHODS
-
-=head2 $mech->add_header( name => $value [, name => $value... ] )
-
-Sets HTTP headers for the agent to add or remove from the HTTP request.
-
-    $mech->add_header( Encoding => 'text/klingon' );
-
-If a I<value> is C<undef>, then that header will be removed from any
-future requests.  For example, to never send a Referer header:
-
-    $mech->add_header( Referer => undef );
-
-If you want to delete a header, use C<delete_header>.
-
-Returns the number of name/value pairs added.
-
-B<NOTE>: This method was very different in WWW::Mechanize before 1.00.
-Back then, the headers were stored in a package hash, not as a member of
-the object instance.  Calling C<add_header()> would modify the headers
-for every WWW::Mechanize object, even after your object no longer existed.
-
-=cut
 
 sub add_header {
     my $self = shift;
@@ -1997,21 +977,6 @@ sub add_header {
     return $npairs;
 }
 
-=head2 $mech->delete_header( name [, name ... ] )
-
-Removes HTTP headers from the agent's list of special headers.  For
-instance, you might need to do something like:
-
-    # Don't send a Referer for this URL
-    $mech->add_header( Referer => undef );
-
-    # Get the URL
-    $mech->get( $url );
-
-    # Back to the default behavior
-    $mech->delete_header( 'Referer' );
-
-=cut
 
 sub delete_header {
     my $self = shift;
@@ -2026,15 +991,6 @@ sub delete_header {
 }
 
 
-=head2 $mech->quiet(true/false)
-
-Allows you to suppress warnings to the screen.
-
-    $mech->quiet(0); # turns on warnings (the default)
-    $mech->quiet(1); # turns off warnings
-    $mech->quiet();  # returns the current quietness status
-
-=cut
 
 sub quiet {
     my $self = shift;
@@ -2044,15 +1000,6 @@ sub quiet {
     return $self->{quiet};
 }
 
-=head2 $mech->stack_depth( $max_depth )
-
-Get or set the page stack depth. Use this if you're doing a lot of page
-scraping and running out of memory.
-
-A value of 0 means "no history at all."  By default, the max stack depth
-is humongously large, effectively keeping all history.
-
-=cut
 
 sub stack_depth {
     my $self = shift;
@@ -2060,50 +1007,6 @@ sub stack_depth {
     return $self->{stack_depth};
 }
 
-=head2 $mech->save_content( $filename, %opts )
-
-Dumps the contents of C<< $mech->content >> into I<$filename>.
-I<$filename> will be overwritten.  Dies if there are any errors.
-
-If the content type does not begin with "text/", then the content
-is saved in binary mode (i.e. C<binmode()> is set on the output
-filehandle).
-
-Additional arguments can be passed as I<key>/I<value> pairs:
-
-=over
-
-=item I<< $mech->save_content( $filename, binary => 1 ) >>
-
-Filehandle is set with C<binmode> to C<:raw> and contents are taken
-calling C<< $self->content(decoded_by_headers => 1) >>. Same as calling:
-
-    $mech->save_content( $filename, binmode => ':raw',
-                         decoded_by_headers => 1 );
-
-This I<should> be the safest way to save contents verbatim.
-
-=item I<< $mech->save_content( $filename, binmode => $binmode ) >>
-
-Filehandle is set to binary mode. If C<$binmode> begins with ':', it is
-passed as a parameter to C<binmode>:
-
-    binmode $fh, $binmode;
-
-otherwise the filehandle is set to binary mode if C<$binmode> is true:
-
-    binmode $fh;
-
-=item I<all other arguments>
-
-are passed as-is to C<< $mech->content(%opts) >>. In particular,
-C<decoded_by_headers> might come handy if you want to revert the effect
-of line compression performed by the web server but without further
-interpreting the contents (e.g. decoding it according to the charset).
-
-=back
-
-=cut
 
 sub save_content {
     my $self = shift;
@@ -2130,16 +1033,6 @@ sub save_content {
 }
 
 
-=head2 $mech->dump_headers( [$fh] )
-
-Prints a dump of the HTTP response headers for the most recent
-response.  If I<$fh> is not specified or is undef, it dumps to
-STDOUT.
-
-Unlike the rest of the dump_* methods, $fh can be a scalar. It
-will be used as a file name.
-
-=cut
 
 sub _get_fh_default_stdout {
     my $self = shift;
@@ -2164,14 +1057,6 @@ sub dump_headers {
 }
 
 
-=head2 $mech->dump_links( [[$fh], $absolute] )
-
-Prints a dump of the links on the current page to I<$fh>.  If I<$fh>
-is not specified or is undef, it dumps to STDOUT.
-
-If I<$absolute> is true, links displayed are absolute, not relative.
-
-=cut
 
 sub dump_links {
     my $self = shift;
@@ -2186,14 +1071,6 @@ sub dump_links {
     return;
 }
 
-=head2 $mech->dump_images( [[$fh], $absolute] )
-
-Prints a dump of the images on the current page to I<$fh>.  If I<$fh>
-is not specified or is undef, it dumps to STDOUT.
-
-If I<$absolute> is true, links displayed are absolute, not relative.
-
-=cut
 
 sub dump_images {
     my $self = shift;
@@ -2208,12 +1085,6 @@ sub dump_images {
     return;
 }
 
-=head2 $mech->dump_forms( [$fh] )
-
-Prints a dump of the forms on the current page to I<$fh>.  If I<$fh>
-is not specified or is undef, it dumps to STDOUT.
-
-=cut
 
 sub dump_forms {
     my $self = shift;
@@ -2225,12 +1096,6 @@ sub dump_forms {
     return;
 }
 
-=head2 $mech->dump_text( [$fh] )
-
-Prints a dump of the text on the current page to I<$fh>.  If I<$fh>
-is not specified or is undef, it dumps to STDOUT.
-
-=cut
 
 sub dump_text {
     my $self = shift;
@@ -2243,35 +1108,18 @@ sub dump_text {
 }
 
 
-=head1 OVERRIDDEN LWP::UserAgent METHODS
-
-=head2 $mech->clone()
-
-Clone the mech object.  The clone will be using the same cookie jar
-as the original mech.
-
-=cut
 
 sub clone {
     my $self  = shift;
     my $clone = $self->SUPER::clone();
 
     $clone->cookie_jar( $self->cookie_jar );
+    $clone->{headers} = { %{$self->{headers}} };
 
     return $clone;
 }
 
 
-=head2 $mech->redirect_ok()
-
-An overloaded version of C<redirect_ok()> in L<LWP::UserAgent>.
-This method is used to determine whether a redirection in the request
-should be followed.
-
-Note that WWW::Mechanize's constructor pushes POST on to the agent's
-C<requests_redirectable> list.
-
-=cut
 
 sub redirect_ok {
     my $self = shift;
@@ -2287,21 +1135,13 @@ sub redirect_ok {
 }
 
 
-=head2 $mech->request( $request [, $arg [, $size]])
-
-Overloaded version of C<request()> in L<LWP::UserAgent>.  Performs
-the actual request.  Normally, if you're using WWW::Mechanize, it's
-because you don't want to deal with this level of stuff anyway.
-
-Note that C<$request> will be modified.
-
-Returns an L<HTTP::Response> object.
-
-=cut
 
 sub request {
     my $self = shift;
     my $request = shift;
+    
+    _die( '->request was called without a request parameter' )
+        unless $request;
 
     $request = $self->_modify_request( $request );
 
@@ -2312,42 +1152,6 @@ sub request {
     return $self->_update_page($request, $self->_make_request( $request, @_ ));
 }
 
-=head2 $mech->update_html( $html )
-
-Allows you to replace the HTML that the mech has found.  Updates the
-forms and links parse-trees that the mech uses internally.
-
-Say you have a page that you know has malformed output, and you want to
-update it so the links come out correctly:
-
-    my $html = $mech->content;
-    $html =~ s[</option>.{0,3}</td>][</option></select></td>]isg;
-    $mech->update_html( $html );
-
-This method is also used internally by the mech itself to update its
-own HTML content when loading a page. This means that if you would
-like to I<systematically> perform the above HTML substitution, you
-would overload I<update_html> in a subclass thusly:
-
-   package MyMech;
-   use base 'WWW::Mechanize';
-
-   sub update_html {
-       my ($self, $html) = @_;
-       $html =~ s[</option>.{0,3}</td>][</option></select></td>]isg;
-       $self->WWW::Mechanize::update_html( $html );
-   }
-
-If you do this, then the mech will use the tidied-up HTML instead of
-the original both when parsing for its own needs, and for returning to
-you through L</content>.
-
-Overloading this method is also the recommended way of implementing
-extra validation steps (e.g. link checkers) for every HTML page
-received.  L</warn> and L</die> would then come in handy to signal
-validation errors.
-
-=cut
 
 sub update_html {
     my $self = shift;
@@ -2360,15 +1164,6 @@ sub update_html {
     return;
 }
 
-=head2 $mech->credentials( $username, $password )
-
-Provide credentials to be used for HTTP Basic authentication for
-all sites and realms until further notice.
-
-The four argument form described in L<LWP::UserAgent> is still
-supported.
-
-=cut
 
 sub credentials {
     my $self = shift;
@@ -2385,11 +1180,6 @@ sub credentials {
     return @$self{qw( __username __password )} = @_;
 }
 
-=head2 $mech->get_basic_credentials( $realm, $uri, $isproxy )
-
-Returns the credentials for the realm and URI.
-
-=cut
 
 sub get_basic_credentials {
     my $self = shift;
@@ -2398,67 +1188,12 @@ sub get_basic_credentials {
     return $self->SUPER::get_basic_credentials(@_);
 }
 
-=head2 $mech->clear_credentials()
-
-Remove any credentials set up with C<credentials()>.
-
-=cut
 
 sub clear_credentials {
     my $self = shift;
     delete @$self{qw( __username __password )};
 }
 
-=head1 INHERITED UNCHANGED LWP::UserAgent METHODS
-
-As a subclass of L<LWP::UserAgent>, WWW::Mechanize inherits all of
-L<LWP::UserAgent>'s methods.  Many of which are overridden or
-extended. The following methods are inherited unchanged. View the
-L<LWP::UserAgent> documentation for their implementation descriptions.
-
-This is not meant to be an inclusive list.  LWP::UA may have added
-others.
-
-=head2 $mech->head()
-
-Inherited from L<LWP::UserAgent>.
-
-=head2 $mech->post()
-
-Inherited from L<LWP::UserAgent>.
-
-=head2 $mech->mirror()
-
-Inherited from L<LWP::UserAgent>.
-
-=head2 $mech->simple_request()
-
-Inherited from L<LWP::UserAgent>.
-
-=head2 $mech->is_protocol_supported()
-
-Inherited from L<LWP::UserAgent>.
-
-=head2 $mech->prepare_request()
-
-Inherited from L<LWP::UserAgent>.
-
-=head2 $mech->progress()
-
-Inherited from L<LWP::UserAgent>.
-
-=head1 INTERNAL-ONLY METHODS
-
-These methods are only used internally.  You probably don't need to
-know about them.
-
-=head2 $mech->_update_page($request, $response)
-
-Updates all internal variables in $mech as if $request was just
-performed, and returns $response. The page stack is B<not> altered by
-this method, it is up to caller (e.g. L</request>) to do that.
-
-=cut
 
 sub _update_page {
     my ($self, $request, $res) = @_;
@@ -2546,15 +1281,6 @@ sub _is_tainted {
 } # _is_tainted
 
 
-=head2 $mech->_modify_request( $req )
-
-Modifies a L<HTTP::Request> before the request is sent out,
-for both GET and POST requests.
-
-We add a C<Referer> header, as well as header to note that we can accept gzip
-encoded content, if L<Compress::Zlib> is installed.
-
-=cut
 
 sub _modify_request {
     my $self = shift;
@@ -2586,23 +1312,12 @@ sub _modify_request {
 }
 
 
-=head2 $mech->_make_request()
-
-Convenience method to make it easier for subclasses like
-L<WWW::Mechanize::Cached> to intercept the request.
-
-=cut
 
 sub _make_request {
     my $self = shift;
     return $self->SUPER::request(@_);
 }
 
-=head2 $mech->_reset_page()
-
-Resets the internal fields that track page parsed stuff.
-
-=cut
 
 sub _reset_page {
     my $self = shift;
@@ -2617,12 +1332,6 @@ sub _reset_page {
     return;
 }
 
-=head2 $mech->_extract_links()
-
-Extracts links from the content of a webpage, and populates the C<{links}>
-property with L<WWW::Mechanize::Link> objects.
-
-=cut
 
 my %link_tags = (
     a      => 'href',
@@ -2769,18 +1478,6 @@ sub _extract_forms {
     return;
 }
 
-=head2 $mech->_push_page_stack()
-
-The agent keeps a stack of visited pages, which it can pop when it needs
-to go BACK and so on.
-
-The current page needs to be pushed onto the stack before we get a new
-page, and the stack needs to be popped when BACK occurs.
-
-Neither of these take any arguments, they just operate on the $mech
-object.
-
-=cut
 
 sub _push_page_stack {
     my $self = shift;
@@ -2800,13 +1497,6 @@ sub _push_page_stack {
     return 1;
 }
 
-=head2 warn( @messages )
-
-Centralized warning method, for diagnostics and non-fatal problems.
-Defaults to calling C<CORE::warn>, but may be overridden by setting
-C<onwarn> in the constructor.
-
-=cut
 
 sub warn {
     my $self = shift;
@@ -2818,12 +1508,6 @@ sub warn {
     return $handler->(@_);
 }
 
-=head2 die( @messages )
-
-Centralized error method.  Defaults to calling C<CORE::die>, but
-may be overridden by setting C<onerror> in the constructor.
-
-=cut
 
 sub die {
     my $self = shift;
@@ -2850,13 +1534,1333 @@ sub _die {
 
 __END__
 
+=pod
+
+=encoding UTF-8
+
+=head1 NAME
+
+WWW::Mechanize - Handy web browsing in a Perl object
+
+=head1 VERSION
+
+version 1.76
+
+=head1 SYNOPSIS
+
+C<WWW::Mechanize>, or Mech for short, is a Perl module for stateful
+programmatic web browsing, used for automating interaction with
+websites.
+
+Features include:
+
+=over 4
+
+=item * All HTTP methods
+
+=item * High-level hyperlink and HTML form support, without having to parse HTML yourself
+
+=item * SSL support
+
+=item * Automatic cookies
+
+=item * Custom HTTP headers
+
+=item * Automatic handling of redirections
+
+=item * Proxies
+
+=item * HTTP authentication
+
+=back
+
+Mech supports performing a sequence of page fetches including
+following links and submitting forms. Each fetched page is parsed
+and its links and forms are extracted. A link or a form can be
+selected, form fields can be filled and the next page can be fetched.
+Mech also stores a history of the URLs you've visited, which can
+be queried and revisited.
+
+    use WWW::Mechanize;
+    my $mech = WWW::Mechanize->new();
+
+    $mech->get( $url );
+
+    $mech->follow_link( n => 3 );
+    $mech->follow_link( text_regex => qr/download this/i );
+    $mech->follow_link( url => 'http://host.com/index.html' );
+
+    $mech->submit_form(
+        form_number => 3,
+        fields      => {
+            username    => 'mungo',
+            password    => 'lost-and-alone',
+        }
+    );
+
+    $mech->submit_form(
+        form_name => 'search',
+        fields    => { query  => 'pot of gold', },
+        button    => 'Search Now'
+    );
+
+Mech is well suited for use in testing web applications.  If you use
+one of the Test::*, like L<Test::HTML::Lint> modules, you can check the
+fetched content and use that as input to a test call.
+
+    use Test::More;
+    like( $mech->content(), qr/$expected/, "Got expected content" );
+
+Each page fetch stores its URL in a history stack which you can
+traverse.
+
+    $mech->back();
+
+If you want finer control over your page fetching, you can use
+these methods. C<follow_link> and C<submit_form> are just high
+level wrappers around them.
+
+    $mech->find_link( n => $number );
+    $mech->form_number( $number );
+    $mech->form_name( $name );
+    $mech->field( $name, $value );
+    $mech->set_fields( %field_values );
+    $mech->set_visible( @criteria );
+    $mech->click( $button );
+
+L<WWW::Mechanize> is a proper subclass of L<LWP::UserAgent> and
+you can also use any of L<LWP::UserAgent>'s methods.
+
+    $mech->add_header($name => $value);
+
+Please note that Mech does NOT support JavaScript, you need additional software
+for that. Please check L<WWW::Mechanize::FAQ/"JavaScript"> for more.
+
+=head1 IMPORTANT LINKS
+
+=over 4
+
+=item * L<https://github.com/libwww-perl/WWW-Mechanize/issues>
+
+The queue for bugs & enhancements in WWW::Mechanize and
+Test::WWW::Mechanize.  Please note that the queue at L<http://rt.cpan.org>
+is no longer maintained.
+
+=item * L<http://search.cpan.org/dist/WWW-Mechanize/>
+
+The CPAN documentation page for Mechanize.
+
+=item * L<http://search.cpan.org/dist/WWW-Mechanize/lib/WWW/Mechanize/FAQ.pod>
+
+Frequently asked questions.  Make sure you read here FIRST.
+
+=back
+
+=head1 CONSTRUCTOR AND STARTUP
+
+=head2 new()
+
+Creates and returns a new WWW::Mechanize object, hereafter referred to as
+the "agent".
+
+    my $mech = WWW::Mechanize->new()
+
+The constructor for WWW::Mechanize overrides two of the parms to the
+LWP::UserAgent constructor:
+
+    agent => 'WWW-Mechanize/#.##'
+    cookie_jar => {}    # an empty, memory-only HTTP::Cookies object
+
+You can override these overrides by passing parms to the constructor,
+as in:
+
+    my $mech = WWW::Mechanize->new( agent => 'wonderbot 1.01' );
+
+If you want none of the overhead of a cookie jar, or don't want your
+bot accepting cookies, you have to explicitly disallow it, like so:
+
+    my $mech = WWW::Mechanize->new( cookie_jar => undef );
+
+Here are the parms that WWW::Mechanize recognizes.  These do not include
+parms that L<LWP::UserAgent> recognizes.
+
+=over 4
+
+=item * C<< autocheck => [0|1] >>
+
+Checks each request made to see if it was successful.  This saves
+you the trouble of manually checking yourself.  Any errors found
+are errors, not warnings.
+
+The default value is ON, unless it's being subclassed, in which
+case it is OFF.  This means that standalone L<WWW::Mechanize>instances
+have autocheck turned on, which is protective for the vast majority
+of Mech users who don't bother checking the return value of get()
+and post() and can't figure why their code fails. However, if
+L<WWW::Mechanize> is subclassed, such as for L<Test::WWW::Mechanize>
+or L<Test::WWW::Mechanize::Catalyst>, this may not be an appropriate
+default, so it's off.
+
+=item * C<< noproxy => [0|1] >>
+
+Turn off the automatic call to the L<LWP::UserAgent> C<env_proxy> function.
+
+This needs to be explicitly turned off if you're using L<Crypt::SSLeay> to
+access a https site via a proxy server.  Note: you still need to set your
+HTTPS_PROXY environment variable as appropriate.
+
+=item * C<< onwarn => \&func >>
+
+Reference to a C<warn>-compatible function, such as C<< L<Carp>::carp >>,
+that is called when a warning needs to be shown.
+
+If this is set to C<undef>, no warnings will ever be shown.  However,
+it's probably better to use the C<quiet> method to control that behavior.
+
+If this value is not passed, Mech uses C<Carp::carp> if L<Carp> is
+installed, or C<CORE::warn> if not.
+
+=item * C<< onerror => \&func >>
+
+Reference to a C<die>-compatible function, such as C<< L<Carp>::croak >>,
+that is called when there's a fatal error.
+
+If this is set to C<undef>, no errors will ever be shown.
+
+If this value is not passed, Mech uses C<Carp::croak> if L<Carp> is
+installed, or C<CORE::die> if not.
+
+=item * C<< quiet => [0|1] >>
+
+Don't complain on warnings.  Setting C<< quiet => 1 >> is the same as
+calling C<< $mech->quiet(1) >>.  Default is off.
+
+=item * C<< stack_depth => $value >>
+
+Sets the depth of the page stack that keeps track of all the
+downloaded pages. Default is effectively infinite stack size.  If
+the stack is eating up your memory, then set this to a smaller
+number, say 5 or 10.  Setting this to zero means Mech will keep no
+history.
+
+=back
+
+To support forms, WWW::Mechanize's constructor pushes POST
+on to the agent's C<requests_redirectable> list (see also
+L<LWP::UserAgent>.)
+
+=head2 $mech->agent_alias( $alias )
+
+Sets the user agent string to the expanded version from a table of actual user strings.
+I<$alias> can be one of the following:
+
+=over 4
+
+=item * Windows IE 6
+
+=item * Windows Mozilla
+
+=item * Mac Safari
+
+=item * Mac Mozilla
+
+=item * Linux Mozilla
+
+=item * Linux Konqueror
+
+=back
+
+then it will be replaced with a more interesting one.  For instance,
+
+    $mech->agent_alias( 'Windows IE 6' );
+
+sets your User-Agent to
+
+    Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)
+
+The list of valid aliases can be returned from C<known_agent_aliases()>.  The current list is:
+
+=over
+
+=item * Windows IE 6
+
+=item * Windows Mozilla
+
+=item * Mac Safari
+
+=item * Mac Mozilla
+
+=item * Linux Mozilla
+
+=item * Linux Konqueror
+
+=back
+
+=head2 known_agent_aliases()
+
+Returns a list of all the agent aliases that Mech knows about.
+
+=head1 PAGE-FETCHING METHODS
+
+=head2 $mech->get( $uri )
+
+Given a URL/URI, fetches it.  Returns an L<HTTP::Response> object.
+I<$uri> can be a well-formed URL string, a L<URI> object, or a
+L<WWW::Mechanize::Link> object.
+
+The results are stored internally in the agent object, but you don't
+know that.  Just use the accessors listed below.  Poking at the
+internals is deprecated and subject to change in the future.
+
+C<get()> is a well-behaved overloaded version of the method in
+L<LWP::UserAgent>.  This lets you do things like
+
+    $mech->get( $uri, ':content_file' => $tempfile );
+
+and you can rest assured that the parms will get filtered down
+appropriately.
+
+B<NOTE:> Because C<:content_file> causes the page contents to be
+stored in a file instead of the response object, some Mech functions
+that expect it to be there won't work as expected. Use with caution.
+
+=head2 $mech->put( $uri, content => $content )
+
+PUTs I<$content> to $uri.  Returns an L<HTTP::Response> object.
+I<$uri> can be a well-formed URI string, a L<URI> object, or a
+L<WWW::Mechanize::Link> object.
+
+=head2 $mech->reload()
+
+Acts like the reload button in a browser: repeats the current
+request. The history (as per the L</back> method) is not altered.
+
+Returns the L<HTTP::Response> object from the reload, or C<undef>
+if there's no current request.
+
+=head2 $mech->back()
+
+The equivalent of hitting the "back" button in a browser.  Returns to
+the previous page.  Won't go back past the first page. (Really, what
+would it do if it could?)
+
+Returns true if it could go back, or false if not.
+
+=head2 $mech->history_count()
+
+This returns the number of items in the browser history.  This number I<does>
+include the most recently made request.
+
+=head2 $mech->history($n)
+
+This returns the I<n>th item in history.  The 0th item is the most recent
+request and response, which would be acted on by methods like C<find_link()>.
+The 1th item is the state you'd return to if you called C<back()>.
+
+The maximum useful value for C<$n> is C<< $mech->history_count - 1 >>.
+Requests beyond that bound will return C<undef>.
+
+History items are returned as hash references, in the form:
+
+  { req => $http_request, res => $http_response }
+
+=head1 STATUS METHODS
+
+=head2 $mech->success()
+
+Returns a boolean telling whether the last request was successful.
+If there hasn't been an operation yet, returns false.
+
+This is a convenience function that wraps C<< $mech->res->is_success >>.
+
+=head2 $mech->uri()
+
+Returns the current URI as a L<URI> object. This object stringifies
+to the URI itself.
+
+=head2 $mech->response() / $mech->res()
+
+Return the current response as an L<HTTP::Response> object.
+
+Synonym for C<< $mech->response() >>
+
+=head2 $mech->status()
+
+Returns the HTTP status code of the response.  This is a 3-digit
+number like 200 for OK, 404 for not found, and so on.
+
+=head2 $mech->ct() / $mech->content_type()
+
+Returns the content type of the response.
+
+=head2 $mech->base()
+
+Returns the base URI for the current response
+
+=head2 $mech->forms()
+
+When called in a list context, returns a list of the forms found in
+the last fetched page. In a scalar context, returns a reference to
+an array with those forms. The forms returned are all L<HTML::Form>
+objects.
+
+=head2 $mech->current_form()
+
+Returns the current form as an L<HTML::Form> object.
+
+=head2 $mech->links()
+
+When called in a list context, returns a list of the links found in the
+last fetched page.  In a scalar context it returns a reference to an array
+with those links.  Each link is a L<WWW::Mechanize::Link> object.
+
+=head2 $mech->is_html()
+
+Returns true/false on whether our content is HTML, according to the
+HTTP headers.
+
+=head2 $mech->title()
+
+Returns the contents of the C<< <TITLE> >> tag, as parsed by
+L<HTML::HeadParser>.  Returns undef if the content is not HTML.
+
+=head1 CONTENT-HANDLING METHODS
+
+=head2 $mech->content(...)
+
+Returns the content that the mech uses internally for the last page
+fetched. Ordinarily this is the same as
+C<< $mech->response()->decoded_content() >>,
+but this may differ for HTML documents if L</update_html> is
+overloaded (in which case the value passed to the base-class
+implementation of same will be returned), and/or extra named arguments
+are passed to I<content()>:
+
+=over 2
+
+=item I<< $mech->content( format => 'text' ) >>
+
+Returns a text-only version of the page, with all HTML markup
+stripped. This feature requires I<HTML::TreeBuilder> to be installed,
+or a fatal error will be thrown. This works only if the contents are
+HTML.
+
+=item I<< $mech->content( base_href => [$base_href|undef] ) >>
+
+Returns the HTML document, modified to contain a
+C<< <base href="$base_href"> >> mark-up in the header.
+I<$base_href> is C<< $mech->base() >> if not specified. This is
+handy to pass the HTML to e.g. L<HTML::Display>. This works only if
+the contents are HTML.
+
+=item I<< $mech->content( raw => 1 ) >>
+
+Returns C<< $self->response()->content() >>, i.e. the raw contents from the
+response.
+
+=item I<< $mech->content( decoded_by_headers => 1 ) >>
+
+Returns the content after applying all C<Content-Encoding> headers but
+with not additional mangling.
+
+=item I<< $mech->content( charset => $charset ) >>
+
+Returns C<< $self->response()->decoded_content(charset => $charset) >>
+(see L<HTTP::Response> for details).
+
+=back
+
+To preserve backwards compatibility, additional parameters will be
+ignored unless none of C<< raw | decoded_by_headers | charset >> is
+specified and the text is HTML, in which case an error will be triggered.
+
+=head2 $mech->text()
+
+Returns the text of the current HTML content.  If the content isn't
+HTML, $mech will die.
+
+The text is extracted by parsing the content, and then the extracted
+text is cached, so don't worry about performance of calling this
+repeatedly.
+
+=head1 LINK METHODS
+
+=head2 $mech->links()
+
+Lists all the links on the current page.  Each link is a
+WWW::Mechanize::Link object. In list context, returns a list of all
+links.  In scalar context, returns an array reference of all links.
+
+=head2 $mech->follow_link(...)
+
+Follows a specified link on the page.  You specify the match to be
+found using the same parms that C<L<find_link()>> uses.
+
+Here some examples:
+
+=over 4
+
+=item * 3rd link called "download"
+
+    $mech->follow_link( text => 'download', n => 3 );
+
+=item * first link where the URL has "download" in it, regardless of case:
+
+    $mech->follow_link( url_regex => qr/download/i );
+
+or
+
+    $mech->follow_link( url_regex => qr/(?i:download)/ );
+
+=item * 3rd link on the page
+
+    $mech->follow_link( n => 3 );
+
+=item * the link with the url
+
+    $mech->follow_link( url => '/other/page' );
+
+or
+
+    $mech->follow_link( url => 'http://example.com/page' );
+
+=back
+
+Returns the result of the GET method (an HTTP::Response object) if
+a link was found. If the page has no links, or the specified link
+couldn't be found, returns undef.
+
+=head2 $mech->find_link( ... )
+
+Finds a link in the currently fetched page. It returns a
+L<WWW::Mechanize::Link> object which describes the link.  (You'll
+probably be most interested in the C<url()> property.)  If it fails
+to find a link it returns undef.
+
+You can take the URL part and pass it to the C<get()> method.  If
+that's your plan, you might as well use the C<follow_link()> method
+directly, since it does the C<get()> for you automatically.
+
+Note that C<< <FRAME SRC="..."> >> tags are parsed out of the the HTML
+and treated as links so this method works with them.
+
+You can select which link to find by passing in one or more of these
+key/value pairs:
+
+=over 4
+
+=item * C<< text => 'string', >> and C<< text_regex => qr/regex/, >>
+
+C<text> matches the text of the link against I<string>, which must be an
+exact match.  To select a link with text that is exactly "download", use
+
+    $mech->find_link( text => 'download' );
+
+C<text_regex> matches the text of the link against I<regex>.  To select a
+link with text that has "download" anywhere in it, regardless of case, use
+
+    $mech->find_link( text_regex => qr/download/i );
+
+Note that the text extracted from the page's links are trimmed.  For
+example, C<< <a> foo </a> >> is stored as 'foo', and searching for
+leading or trailing spaces will fail.
+
+=item * C<< url => 'string', >> and C<< url_regex => qr/regex/, >>
+
+Matches the URL of the link against I<string> or I<regex>, as appropriate.
+The URL may be a relative URL, like F<foo/bar.html>, depending on how
+it's coded on the page.
+
+=item * C<< url_abs => string >> and C<< url_abs_regex => regex >>
+
+Matches the absolute URL of the link against I<string> or I<regex>,
+as appropriate.  The URL will be an absolute URL, even if it's relative
+in the page.
+
+=item * C<< name => string >> and C<< name_regex => regex >>
+
+Matches the name of the link against I<string> or I<regex>, as appropriate.
+
+=item * C<< id => string >> and C<< id_regex => regex >>
+
+Matches the attribute 'id' of the link against I<string> or
+I<regex>, as appropriate.
+
+=item * C<< class => string >> and C<< class_regex => regex >>
+
+Matches the attribute 'class' of the link against I<string> or
+I<regex>, as appropriate.
+
+=item * C<< tag => string >> and C<< tag_regex => regex >>
+
+Matches the tag that the link came from against I<string> or I<regex>,
+as appropriate.  The C<tag_regex> is probably most useful to check for
+more than one tag, as in:
+
+    $mech->find_link( tag_regex => qr/^(a|frame)$/ );
+
+The tags and attributes looked at are defined below, at
+L<< $mech->find_link() : link format >>.
+
+=back
+
+If C<n> is not specified, it defaults to 1.  Therefore, if you don't
+specify any parms, this method defaults to finding the first link on the
+page.
+
+Note that you can specify multiple text or URL parameters, which
+will be ANDed together.  For example, to find the first link with
+text of "News" and with "cnn.com" in the URL, use:
+
+    $mech->find_link( text => 'News', url_regex => qr/cnn\.com/ );
+
+The return value is a reference to an array containing a
+L<WWW::Mechanize::Link> object for every link in C<< $self->content >>.
+
+The links come from the following:
+
+=over 4
+
+=item C<< <a href=...> >>
+
+=item C<< <area href=...> >>
+
+=item C<< <frame src=...> >>
+
+=item C<< <iframe src=...> >>
+
+=item C<< <link href=...> >>
+
+=item C<< <meta content=...> >>
+
+=back
+
+=head2 $mech->find_all_links( ... )
+
+Returns all the links on the current page that match the criteria.  The
+method for specifying link criteria is the same as in C<L</find_link()>>.
+Each of the links returned is a L<WWW::Mechanize::Link> object.
+
+In list context, C<find_all_links()> returns a list of the links.
+Otherwise, it returns a reference to the list of links.
+
+C<find_all_links()> with no parameters returns all links in the
+page.
+
+=head2 $mech->find_all_inputs( ... criteria ... )
+
+find_all_inputs() returns an array of all the input controls in the
+current form whose properties match all of the regexes passed in.
+The controls returned are all descended from HTML::Form::Input.
+
+If no criteria are passed, all inputs will be returned.
+
+If there is no current page, there is no form on the current
+page, or there are no submit controls in the current form
+then the return will be an empty array.
+
+You may use a regex or a literal string:
+
+    # get all textarea controls whose names begin with "customer"
+    my @customer_text_inputs = $mech->find_all_inputs(
+        type       => 'textarea',
+        name_regex => qr/^customer/,
+    );
+
+    # get all text or textarea controls called "customer"
+    my @customer_text_inputs = $mech->find_all_inputs(
+        type_regex => qr/^(text|textarea)$/,
+        name       => 'customer',
+    );
+
+=head2 $mech->find_all_submits( ... criteria ... )
+
+C<find_all_submits()> does the same thing as C<find_all_inputs()>
+except that it only returns controls that are submit controls,
+ignoring other types of input controls like text and checkboxes.
+
+=head1 IMAGE METHODS
+
+=head2 $mech->images
+
+Lists all the images on the current page.  Each image is a
+WWW::Mechanize::Image object. In list context, returns a list of all
+images.  In scalar context, returns an array reference of all images.
+
+=head2 $mech->find_image()
+
+Finds an image in the current page. It returns a
+L<WWW::Mechanize::Image> object which describes the image.  If it fails
+to find an image it returns undef.
+
+You can select which image to find by passing in one or more of these
+key/value pairs:
+
+=over 4
+
+=item * C<< alt => 'string' >> and C<< alt_regex => qr/regex/, >>
+
+C<alt> matches the ALT attribute of the image against I<string>, which must be an
+exact match. To select a image with an ALT tag that is exactly "download", use
+
+    $mech->find_image( alt => 'download' );
+
+C<alt_regex> matches the ALT attribute of the image  against a regular
+expression.  To select an image with an ALT attribute that has "download"
+anywhere in it, regardless of case, use
+
+    $mech->find_image( alt_regex => qr/download/i );
+
+=item * C<< url => 'string', >> and C<< url_regex => qr/regex/, >>
+
+Matches the URL of the image against I<string> or I<regex>, as appropriate.
+The URL may be a relative URL, like F<foo/bar.html>, depending on how
+it's coded on the page.
+
+=item * C<< url_abs => string >> and C<< url_abs_regex => regex >>
+
+Matches the absolute URL of the image against I<string> or I<regex>,
+as appropriate.  The URL will be an absolute URL, even if it's relative
+in the page.
+
+=item * C<< tag => string >> and C<< tag_regex => regex >>
+
+Matches the tag that the image came from against I<string> or I<regex>,
+as appropriate.  The C<tag_regex> is probably most useful to check for
+more than one tag, as in:
+
+    $mech->find_image( tag_regex => qr/^(img|input)$/ );
+
+The tags supported are C<< <img> >> and C<< <input> >>.
+
+=back
+
+If C<n> is not specified, it defaults to 1.  Therefore, if you don't
+specify any parms, this method defaults to finding the first image on the
+page.
+
+Note that you can specify multiple ALT or URL parameters, which
+will be ANDed together.  For example, to find the first image with
+ALT text of "News" and with "cnn.com" in the URL, use:
+
+    $mech->find_image( image => 'News', url_regex => qr/cnn\.com/ );
+
+The return value is a reference to an array containing a
+L<WWW::Mechanize::Image> object for every image in C<< $self->content >>.
+
+=head2 $mech->find_all_images( ... )
+
+Returns all the images on the current page that match the criteria.  The
+method for specifying image criteria is the same as in C<L</find_image()>>.
+Each of the images returned is a L<WWW::Mechanize::Image> object.
+
+In list context, C<find_all_images()> returns a list of the images.
+Otherwise, it returns a reference to the list of images.
+
+C<find_all_images()> with no parameters returns all images in the page.
+
+=head1 FORM METHODS
+
+These methods let you work with the forms on a page.  The idea is
+to choose a form that you'll later work with using the field methods
+below.
+
+=head2 $mech->forms
+
+Lists all the forms on the current page.  Each form is an L<HTML::Form>
+object.  In list context, returns a list of all forms.  In scalar
+context, returns an array reference of all forms.
+
+=head2 $mech->form_number($number)
+
+Selects the I<number>th form on the page as the target for subsequent
+calls to C<L</field()>> and C<L</click()>>.  Also returns the form that was
+selected.
+
+If it is found, the form is returned as an L<HTML::Form> object and set internally
+for later use with Mech's form methods such as C<L</field()>> and C<L</click()>>.
+
+Emits a warning and returns undef if no form is found.
+
+The first form is number 1, not zero.
+
+=head2 $mech->form_name( $name )
+
+Selects a form by name.  If there is more than one form on the page
+with that name, then the first one is used, and a warning is
+generated.
+
+If it is found, the form is returned as an L<HTML::Form> object and
+set internally for later use with Mech's form methods such as
+C<L</field()>> and C<L</click()>>.
+
+Returns undef if no form is found.
+
+=head2 $mech->form_id( $name )
+
+Selects a form by ID.  If there is more than one form on the page
+with that ID, then the first one is used, and a warning is generated.
+
+If it is found, the form is returned as an L<HTML::Form> object and
+set internally for later use with Mech's form methods such as
+C<L</field()>> and C<L</click()>>.
+
+If no form is found it returns C<undef>.  This will also trigger a warning,
+unless C<quiet> is enabled.
+
+=head2 $mech->form_with_fields( @fields )
+
+Selects a form by passing in a list of field names it must contain.  If there
+is more than one form on the page with that matches, then the first one is used,
+and a warning is generated.
+
+If it is found, the form is returned as an L<HTML::Form> object and set internally
+for later used with Mech's form methods such as C<L</field()>> and C<L</click()>>.
+
+Returns undef if no form is found.
+
+Note that this functionality requires libwww-perl 5.69 or higher.
+
+=head1 FIELD METHODS
+
+These methods allow you to set the values of fields in a given form.
+
+=head2 $mech->field( $name, $value, $number )
+
+=head2 $mech->field( $name, \@values, $number )
+
+Given the name of a field, set its value to the value specified.
+This applies to the current form (as set by the L</form_name()> or
+L</form_number()> method or defaulting to the first form on the
+page).
+
+The optional I<$number> parameter is used to distinguish between two fields
+with the same name.  The fields are numbered from 1.
+
+=head2 $mech->select($name, $value)
+
+=head2 $mech->select($name, \@values)
+
+Given the name of a C<select> field, set its value to the value
+specified.  If the field is not C<< <select multiple> >> and the
+C<$value> is an array, only the B<first> value will be set.  [Note:
+the documentation previously claimed that only the last value would
+be set, but this was incorrect.]  Passing C<$value> as a hash with
+an C<n> key selects an item by number (e.g.
+C<< {n => 3} >> or C<< {n => [2,4]} >>).
+The numbering starts at 1.  This applies to the current form.
+
+If you have a field with C<< <select multiple> >> and you pass a single
+C<$value>, then C<$value> will be added to the list of fields selected,
+without clearing the others.  However, if you pass an array reference,
+then all previously selected values will be cleared.
+
+Returns true on successfully setting the value. On failure, returns
+false and calls C<< $self>warn() >> with an error message.
+
+=head2 $mech->set_fields( $name => $value ... )
+
+This method sets multiple fields of the current form. It takes a list
+of field name and value pairs. If there is more than one field with
+the same name, the first one found is set. If you want to select which
+of the duplicate field to set, use a value which is an anonymous array
+which has the field value and its number as the 2 elements.
+
+        # set the second foo field
+        $mech->set_fields( $name => [ 'foo', 2 ] );
+
+The fields are numbered from 1.
+
+This applies to the current form.
+
+=head2 $mech->set_visible( @criteria )
+
+This method sets fields of the current form without having to know
+their names.  So if you have a login screen that wants a username and
+password, you do not have to fetch the form and inspect the source (or
+use the F<mech-dump> utility, installed with WWW::Mechanize) to see
+what the field names are; you can just say
+
+    $mech->set_visible( $username, $password );
+
+and the first and second fields will be set accordingly.  The method
+is called set_I<visible> because it acts only on visible fields;
+hidden form inputs are not considered.  The order of the fields is
+the order in which they appear in the HTML source which is nearly
+always the order anyone viewing the page would think they are in,
+but some creative work with tables could change that; caveat user.
+
+Each element in C<@criteria> is either a field value or a field
+specifier.  A field value is a scalar.  A field specifier allows
+you to specify the I<type> of input field you want to set and is
+denoted with an arrayref containing two elements.  So you could
+specify the first radio button with
+
+    $mech->set_visible( [ radio => 'KCRW' ] );
+
+Field values and specifiers can be intermixed, hence
+
+    $mech->set_visible( 'fred', 'secret', [ option => 'Checking' ] );
+
+would set the first two fields to "fred" and "secret", and the I<next>
+C<OPTION> menu field to "Checking".
+
+The possible field specifier types are: "text", "password", "hidden",
+"textarea", "file", "image", "submit", "radio", "checkbox" and "option".
+
+C<set_visible> returns the number of values set.
+
+=head2 $mech->tick( $name, $value [, $set] )
+
+"Ticks" the first checkbox that has both the name and value associated
+with it on the current form.  Dies if there is no named check box for
+that value.  Passing in a false value as the third optional argument
+will cause the checkbox to be unticked.
+
+=head2 $mech->untick($name, $value)
+
+Causes the checkbox to be unticked.  Shorthand for
+C<tick($name,$value,undef)>
+
+=head2 $mech->value( $name [, $number] )
+
+Given the name of a field, return its value. This applies to the current
+form.
+
+The optional I<$number> parameter is used to distinguish between two fields
+with the same name.  The fields are numbered from 1.
+
+If the field is of type file (file upload field), the value is always
+cleared to prevent remote sites from downloading your local files.
+To upload a file, specify its file name explicitly.
+
+=head2 $mech->click( $button [, $x, $y] )
+
+Has the effect of clicking a button on the current form.  The first
+argument is the name of the button to be clicked.  The second and
+third arguments (optional) allow you to specify the (x,y) coordinates
+of the click.
+
+If there is only one button on the form, C<< $mech->click() >> with
+no arguments simply clicks that one button.
+
+Returns an L<HTTP::Response> object.
+
+=head2 $mech->click_button( ... )
+
+Has the effect of clicking a button on the current form by specifying
+its name, value, or index.  Its arguments are a list of key/value
+pairs.  Only one of name, number, input or value must be specified in
+the keys.
+
+=over 4
+
+=item * C<< name => name >>
+
+Clicks the button named I<name> in the current form.
+
+=item * C<< id => id >>
+
+Clicks the button with the id I<id> in the current form.
+
+=item * C<< number => n >>
+
+Clicks the I<n>th button in the current form. Numbering starts at 1.
+
+=item * C<< value => value >>
+
+Clicks the button with the value I<value> in the current form.
+
+=item * C<< input => $inputobject >>
+
+Clicks on the button referenced by $inputobject, an instance of
+L<HTML::Form::SubmitInput> obtained e.g. from
+
+    $mech->current_form()->find_input( undef, 'submit' )
+
+$inputobject must belong to the current form.
+
+=item * C<< x => x >>
+
+=item * C<< y => y >>
+
+These arguments (optional) allow you to specify the (x,y) coordinates
+of the click.
+
+=back
+
+=head2 $mech->submit()
+
+Submits the page, without specifying a button to click.  Actually,
+no button is clicked at all.
+
+Returns an L<HTTP::Response> object.
+
+This used to be a synonym for C<< $mech->click( 'submit' ) >>, but is no
+longer so.
+
+=head2 $mech->submit_form( ... )
+
+This method lets you select a form from the previously fetched page,
+fill in its fields, and submit it. It combines the form_number/form_name,
+set_fields and click methods into one higher level call. Its arguments
+are a list of key/value pairs, all of which are optional.
+
+=over 4
+
+=item * C<< fields => \%fields >>
+
+Specifies the fields to be filled in the current form.
+
+=item * C<< with_fields => \%fields >>
+
+Probably all you need for the common case. It combines a smart form selector
+and data setting in one operation. It selects the first form that contains all
+fields mentioned in C<\%fields>.  This is nice because you don't need to know
+the name or number of the form to do this.
+
+(calls C<L</form_with_fields()>> and C<L</set_fields()>>).
+
+If you choose this, the form_number, form_name, form_id and fields options will be ignored.
+
+=item * C<< form_number => n >>
+
+Selects the I<n>th form (calls C<L</form_number()>>).  If this parm is not
+specified, the currently-selected form is used.
+
+=item * C<< form_name => name >>
+
+Selects the form named I<name> (calls C<L</form_name()>>)
+
+=item * C<< form_id => ID >>
+
+Selects the form with ID I<ID> (calls C<L</form_id()>>)
+
+=item * C<< button => button >>
+
+Clicks on button I<button> (calls C<L</click()>>)
+
+=item * C<< x => x, y => y >>
+
+Sets the x or y values for C<L</click()>>
+
+=back
+
+If no form is selected, the first form found is used.
+
+If I<button> is not passed, then the C<L</submit()>> method is used instead.
+
+If you want to submit a file and get its content from a scalar rather
+than a file in the filesystem, you can use:
+
+    $mech->submit_form(with_fields => { logfile => [ [ undef, 'whatever', Content => $content ], 1 ] } );
+
+Returns an L<HTTP::Response> object.
+
+=head1 MISCELLANEOUS METHODS
+
+=head2 $mech->add_header( name => $value [, name => $value... ] )
+
+Sets HTTP headers for the agent to add or remove from the HTTP request.
+
+    $mech->add_header( Encoding => 'text/klingon' );
+
+If a I<value> is C<undef>, then that header will be removed from any
+future requests.  For example, to never send a Referer header:
+
+    $mech->add_header( Referer => undef );
+
+If you want to delete a header, use C<delete_header>.
+
+Returns the number of name/value pairs added.
+
+B<NOTE>: This method was very different in WWW::Mechanize before 1.00.
+Back then, the headers were stored in a package hash, not as a member of
+the object instance.  Calling C<add_header()> would modify the headers
+for every WWW::Mechanize object, even after your object no longer existed.
+
+=head2 $mech->delete_header( name [, name ... ] )
+
+Removes HTTP headers from the agent's list of special headers.  For
+instance, you might need to do something like:
+
+    # Don't send a Referer for this URL
+    $mech->add_header( Referer => undef );
+
+    # Get the URL
+    $mech->get( $url );
+
+    # Back to the default behavior
+    $mech->delete_header( 'Referer' );
+
+=head2 $mech->quiet(true/false)
+
+Allows you to suppress warnings to the screen.
+
+    $mech->quiet(0); # turns on warnings (the default)
+    $mech->quiet(1); # turns off warnings
+    $mech->quiet();  # returns the current quietness status
+
+=head2 $mech->stack_depth( $max_depth )
+
+Get or set the page stack depth. Use this if you're doing a lot of page
+scraping and running out of memory.
+
+A value of 0 means "no history at all."  By default, the max stack depth
+is humongously large, effectively keeping all history.
+
+=head2 $mech->save_content( $filename, %opts )
+
+Dumps the contents of C<< $mech->content >> into I<$filename>.
+I<$filename> will be overwritten.  Dies if there are any errors.
+
+If the content type does not begin with "text/", then the content
+is saved in binary mode (i.e. C<binmode()> is set on the output
+filehandle).
+
+Additional arguments can be passed as I<key>/I<value> pairs:
+
+=over
+
+=item I<< $mech->save_content( $filename, binary => 1 ) >>
+
+Filehandle is set with C<binmode> to C<:raw> and contents are taken
+calling C<< $self->content(decoded_by_headers => 1) >>. Same as calling:
+
+    $mech->save_content( $filename, binmode => ':raw',
+                         decoded_by_headers => 1 );
+
+This I<should> be the safest way to save contents verbatim.
+
+=item I<< $mech->save_content( $filename, binmode => $binmode ) >>
+
+Filehandle is set to binary mode. If C<$binmode> begins with ':', it is
+passed as a parameter to C<binmode>:
+
+    binmode $fh, $binmode;
+
+otherwise the filehandle is set to binary mode if C<$binmode> is true:
+
+    binmode $fh;
+
+=item I<all other arguments>
+
+are passed as-is to C<< $mech->content(%opts) >>. In particular,
+C<decoded_by_headers> might come handy if you want to revert the effect
+of line compression performed by the web server but without further
+interpreting the contents (e.g. decoding it according to the charset).
+
+=back
+
+=head2 $mech->dump_headers( [$fh] )
+
+Prints a dump of the HTTP response headers for the most recent
+response.  If I<$fh> is not specified or is undef, it dumps to
+STDOUT.
+
+Unlike the rest of the dump_* methods, $fh can be a scalar. It
+will be used as a file name.
+
+=head2 $mech->dump_links( [[$fh], $absolute] )
+
+Prints a dump of the links on the current page to I<$fh>.  If I<$fh>
+is not specified or is undef, it dumps to STDOUT.
+
+If I<$absolute> is true, links displayed are absolute, not relative.
+
+=head2 $mech->dump_images( [[$fh], $absolute] )
+
+Prints a dump of the images on the current page to I<$fh>.  If I<$fh>
+is not specified or is undef, it dumps to STDOUT.
+
+If I<$absolute> is true, links displayed are absolute, not relative.
+
+=head2 $mech->dump_forms( [$fh] )
+
+Prints a dump of the forms on the current page to I<$fh>.  If I<$fh>
+is not specified or is undef, it dumps to STDOUT.
+
+=head2 $mech->dump_text( [$fh] )
+
+Prints a dump of the text on the current page to I<$fh>.  If I<$fh>
+is not specified or is undef, it dumps to STDOUT.
+
+=head1 OVERRIDDEN LWP::UserAgent METHODS
+
+=head2 $mech->clone()
+
+Clone the mech object.  The clone will be using the same cookie jar
+as the original mech.
+
+=head2 $mech->redirect_ok()
+
+An overloaded version of C<redirect_ok()> in L<LWP::UserAgent>.
+This method is used to determine whether a redirection in the request
+should be followed.
+
+Note that WWW::Mechanize's constructor pushes POST on to the agent's
+C<requests_redirectable> list.
+
+=head2 $mech->request( $request [, $arg [, $size]])
+
+Overloaded version of C<request()> in L<LWP::UserAgent>.  Performs
+the actual request.  Normally, if you're using WWW::Mechanize, it's
+because you don't want to deal with this level of stuff anyway.
+
+Note that C<$request> will be modified.
+
+Returns an L<HTTP::Response> object.
+
+=head2 $mech->update_html( $html )
+
+Allows you to replace the HTML that the mech has found.  Updates the
+forms and links parse-trees that the mech uses internally.
+
+Say you have a page that you know has malformed output, and you want to
+update it so the links come out correctly:
+
+    my $html = $mech->content;
+    $html =~ s[</option>.{0,3}</td>][</option></select></td>]isg;
+    $mech->update_html( $html );
+
+This method is also used internally by the mech itself to update its
+own HTML content when loading a page. This means that if you would
+like to I<systematically> perform the above HTML substitution, you
+would overload I<update_html> in a subclass thusly:
+
+   package MyMech;
+   use base 'WWW::Mechanize';
+
+   sub update_html {
+       my ($self, $html) = @_;
+       $html =~ s[</option>.{0,3}</td>][</option></select></td>]isg;
+       $self->WWW::Mechanize::update_html( $html );
+   }
+
+If you do this, then the mech will use the tidied-up HTML instead of
+the original both when parsing for its own needs, and for returning to
+you through L</content>.
+
+Overloading this method is also the recommended way of implementing
+extra validation steps (e.g. link checkers) for every HTML page
+received.  L</warn> and L</die> would then come in handy to signal
+validation errors.
+
+=head2 $mech->credentials( $username, $password )
+
+Provide credentials to be used for HTTP Basic authentication for
+all sites and realms until further notice.
+
+The four argument form described in L<LWP::UserAgent> is still
+supported.
+
+=head2 $mech->get_basic_credentials( $realm, $uri, $isproxy )
+
+Returns the credentials for the realm and URI.
+
+=head2 $mech->clear_credentials()
+
+Remove any credentials set up with C<credentials()>.
+
+=head1 INHERITED UNCHANGED LWP::UserAgent METHODS
+
+As a subclass of L<LWP::UserAgent>, WWW::Mechanize inherits all of
+L<LWP::UserAgent>'s methods.  Many of which are overridden or
+extended. The following methods are inherited unchanged. View the
+L<LWP::UserAgent> documentation for their implementation descriptions.
+
+This is not meant to be an inclusive list.  LWP::UA may have added
+others.
+
+=head2 $mech->head()
+
+Inherited from L<LWP::UserAgent>.
+
+=head2 $mech->post()
+
+Inherited from L<LWP::UserAgent>.
+
+=head2 $mech->mirror()
+
+Inherited from L<LWP::UserAgent>.
+
+=head2 $mech->simple_request()
+
+Inherited from L<LWP::UserAgent>.
+
+=head2 $mech->is_protocol_supported()
+
+Inherited from L<LWP::UserAgent>.
+
+=head2 $mech->prepare_request()
+
+Inherited from L<LWP::UserAgent>.
+
+=head2 $mech->progress()
+
+Inherited from L<LWP::UserAgent>.
+
+=head1 INTERNAL-ONLY METHODS
+
+These methods are only used internally.  You probably don't need to
+know about them.
+
+=head2 $mech->_update_page($request, $response)
+
+Updates all internal variables in $mech as if $request was just
+performed, and returns $response. The page stack is B<not> altered by
+this method, it is up to caller (e.g. L</request>) to do that.
+
+=head2 $mech->_modify_request( $req )
+
+Modifies a L<HTTP::Request> before the request is sent out,
+for both GET and POST requests.
+
+We add a C<Referer> header, as well as header to note that we can accept gzip
+encoded content, if L<Compress::Zlib> is installed.
+
+=head2 $mech->_make_request()
+
+Convenience method to make it easier for subclasses like
+L<WWW::Mechanize::Cached> to intercept the request.
+
+=head2 $mech->_reset_page()
+
+Resets the internal fields that track page parsed stuff.
+
+=head2 $mech->_extract_links()
+
+Extracts links from the content of a webpage, and populates the C<{links}>
+property with L<WWW::Mechanize::Link> objects.
+
+=head2 $mech->_push_page_stack()
+
+The agent keeps a stack of visited pages, which it can pop when it needs
+to go BACK and so on.
+
+The current page needs to be pushed onto the stack before we get a new
+page, and the stack needs to be popped when BACK occurs.
+
+Neither of these take any arguments, they just operate on the $mech
+object.
+
+=head2 warn( @messages )
+
+Centralized warning method, for diagnostics and non-fatal problems.
+Defaults to calling C<CORE::warn>, but may be overridden by setting
+C<onwarn> in the constructor.
+
+=head2 die( @messages )
+
+Centralized error method.  Defaults to calling C<CORE::die>, but
+may be overridden by setting C<onerror> in the constructor.
+
 =head1 WWW::MECHANIZE'S GIT REPOSITORY
 
-WWW::Mechanize is hosted at GitHub, though the bug tracker still
-lives at Google Code.
+WWW::Mechanize is hosted at GitHub.
 
 Repository: L<https://github.com/libwww-perl/WWW-Mechanize>.
-Bugs: L<http://code.google.com/p/www-mechanize/issues>.
+Bugs: L<https://github.com/libwww-perl/WWW-Mechanize/issues>.
 
 =head1 OTHER DOCUMENTATION
 
@@ -3067,10 +3071,15 @@ Pete Krawczyk,
 Tad McClellan,
 and the late great Iain Truskett.
 
-=head1 COPYRIGHT
+=head1 AUTHOR
 
-Copyright (c) 2005-2010 Andy Lester. All rights reserved. This program is
-free software; you can redistribute it and/or modify it under the same
-terms as Perl itself.
+Andy Lester <andy at petdance.com>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2004-2016 by Andy Lester.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
 
 =cut

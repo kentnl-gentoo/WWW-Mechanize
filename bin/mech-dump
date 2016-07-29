@@ -1,10 +1,7 @@
 #!/usr/bin/perl -w
 
-=head1 NAME
-
-mech-dump - Dumps information about a web page
-
-=cut
+# PODNAME: mech-dump
+# ABSTRACT: Dumps information about a web page
 
 use warnings;
 use strict;
@@ -38,42 +35,6 @@ GetOptions(
     help            => sub { pod2usage(1); },
 ) or pod2usage(2);
 
-=head1 SYNOPSIS
-
-mech-dump [options] [file|url]
-
-Options:
-
-    --headers              Dump HTTP response headers
-    --forms                Dump table of forms (default action)
-    --links                Dump table of links
-    --images               Dump table of images
-    --all                  Dump all four of the above, in that order
-
-    --text                 Dumps the textual part of the web page
-
-    --user=user            Set the username
-    --password=pass        Set the password
-    --cookie-file=filename Set the filename to use for persistent cookies
-
-    --agent=agent          Specify the UserAgent to pass
-    --agent-alias=alias
-                           Specify the alias for the UserAgent to pass.
-                           Pick one of:
-                               * Windows IE 6
-                               * Windows Mozilla
-                               * Mac Safari
-                               * Mac Mozilla
-                               * Linux Mozilla
-                               * Linux Konqueror
-
-    --absolute             Show URLs as absolute, even if relative in the page
-    --help                 Show this message
-
-The order of the options specified is relevant.  Repeated options
-get repeated dumps.
-
-=cut
 
 my $uri = shift or die "Must specify a URL or file to check.  See --help for details.\n";
 if ( -e $uri ) {
@@ -147,6 +108,71 @@ sub dump_text {
     return;
 }
 
+__END__
+
+=pod
+
+=encoding UTF-8
+
+=head1 NAME
+
+mech-dump - Dumps information about a web page
+
+=head1 VERSION
+
+version 1.76
+
+=head1 SYNOPSIS
+
+mech-dump [options] [file|url]
+
+Options:
+
+    --headers              Dump HTTP response headers
+    --forms                Dump table of forms (default action)
+    --links                Dump table of links
+    --images               Dump table of images
+    --all                  Dump all four of the above, in that order
+
+    --text                 Dumps the textual part of the web page
+
+    --user=user            Set the username
+    --password=pass        Set the password
+    --cookie-file=filename Set the filename to use for persistent cookies
+
+    --agent=agent          Specify the UserAgent to pass
+    --agent-alias=alias
+                           Specify the alias for the UserAgent to pass.
+                           Pick one of:
+                               * Windows IE 6
+                               * Windows Mozilla
+                               * Mac Safari
+                               * Mac Mozilla
+                               * Linux Mozilla
+                               * Linux Konqueror
+
+    --absolute             Show URLs as absolute, even if relative in the page
+    --help                 Show this message
+
+The order of the options specified is relevant.  Repeated options
+get repeated dumps.
+
+Proxy settings are specified through the environment (e.g. C<http_proxy=http://proxy.my.place/>).
+See LWP::UserAgent for details.
+
 =head1 SEE ALSO
 
 L<WWW::Mechanize>
+
+=head1 AUTHOR
+
+Andy Lester <andy at petdance.com>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2004-2016 by Andy Lester.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut

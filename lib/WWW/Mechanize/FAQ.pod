@@ -1,6 +1,19 @@
+# PODNAME: WWW::Mechanize::FAQ
+# ABSTRACT: Frequently Asked Questions about WWW::Mechanize
+
+__END__
+
+=pod
+
+=encoding UTF-8
+
 =head1 NAME
 
 WWW::Mechanize::FAQ - Frequently Asked Questions about WWW::Mechanize
+
+=head1 VERSION
+
+version 1.76
 
 =head1 How to get help with WWW::Mechanize
 
@@ -243,7 +256,6 @@ Both these options can also be set in the constructor.  Mech doesn't
 understand them, so will pass them through to the LWP::UserAgent
 constructor.
 
-
 =head1 Why doesn't this work: Debugging your Mechanize program
 
 =head2 My Mech program doesn't work, but it works in the browser.
@@ -436,6 +448,13 @@ constructor.  If you set stack_size to 0, Mech will not keep any history.
 
 =head1 AUTHOR
 
-Copyright 2005-2009 Andy Lester C<< <andy at petdance.com> >>
+Andy Lester <andy at petdance.com>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2004-2016 by Andy Lester.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
 
 =cut
