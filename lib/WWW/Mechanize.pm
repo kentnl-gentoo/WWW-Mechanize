@@ -7,7 +7,7 @@ package WWW::Mechanize;
 use strict;
 use warnings;
 
-our $VERSION = 1.76;
+our $VERSION = 1.77;
 
 use HTTP::Request 1.30;
 use LWP::UserAgent 5.827;
@@ -1544,7 +1544,7 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-version 1.76
+version 1.77
 
 =head1 SYNOPSIS
 

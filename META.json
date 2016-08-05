@@ -93,7 +93,7 @@
          "web" : "https://github.com/libwww-perl/WWW-Mechanize"
       }
    },
-   "version" : "1.76",
+   "version" : "1.77",
    "x_contributors" : [
       "Alexandr Ciornii <alexchorny@gmail.com>",
       "Andy Lester <andy@petdance.com>",
@@ -116,6 +116,6 @@
       "sunnavy <sunnavy@bestpractical.com>",
       "Zefram <zefram@fysh.org>"
    ],
-   "x_serialization_backend" : "Cpanel::JSON::XS version 3.0213"
+   "x_serialization_backend" : "Cpanel::JSON::XS version 3.0217"
 }
 

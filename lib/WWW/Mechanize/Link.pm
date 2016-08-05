@@ -1,5 +1,5 @@
 package WWW::Mechanize::Link;
-$WWW::Mechanize::Link::VERSION = '1.76'; # TRIAL
+$WWW::Mechanize::Link::VERSION = '1.77'; # TRIAL
 use strict;
 use warnings;
 
@@ -65,7 +65,7 @@ WWW::Mechanize::Link - Link object for WWW::Mechanize
 
 =head1 VERSION
 
-version 1.76
+version 1.77
 
 =head1 SYNOPSIS
 
