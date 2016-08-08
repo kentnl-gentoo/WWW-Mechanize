@@ -1,6 +1,6 @@
 package WWW::Mechanize::Image;
 # vi:et:sw=4 ts=4
-$WWW::Mechanize::Image::VERSION = '1.77'; # TRIAL
+$WWW::Mechanize::Image::VERSION = '1.78';
 use strict;
 use warnings;
 
@@ -67,7 +67,7 @@ WWW::Mechanize::Image - Image object for WWW::Mechanize
 
 =head1 VERSION
 
-version 1.77
+version 1.78
 
 =head1 SYNOPSIS
 

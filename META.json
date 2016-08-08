@@ -81,7 +81,7 @@
          }
       }
    },
-   "release_status" : "testing",
+   "release_status" : "stable",
    "resources" : {
       "bugtracker" : {
          "web" : "https://github.com/libwww-perl/WWW-Mechanize/issues"
@@ -93,7 +93,7 @@
          "web" : "https://github.com/libwww-perl/WWW-Mechanize"
       }
    },
-   "version" : "1.77",
+   "version" : "1.78",
    "x_contributors" : [
       "Alexandr Ciornii <alexchorny@gmail.com>",
       "Andy Lester <andy@petdance.com>",
