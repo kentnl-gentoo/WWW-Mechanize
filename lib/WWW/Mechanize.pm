@@ -7,7 +7,7 @@ package WWW::Mechanize;
 use strict;
 use warnings;
 
-our $VERSION = 1.78;
+our $VERSION = 1.79;
 
 use HTTP::Request 1.30;
 use LWP::UserAgent 5.827;
@@ -588,36 +588,15 @@ sub form_number {
 
 sub form_name {
     my ($self, $form) = @_;
-
-    my $temp;
-    my @matches = grep {defined($temp = $_->attr('name')) and ($temp eq $form) } $self->forms;
-
-    my $nmatches = @matches;
-    if ( $nmatches > 0 ) {
-        if ( $nmatches > 1 ) {
-            $self->warn( "There are $nmatches forms named $form.  The first one was used." )
-        }
-        return $self->{current_form} = $matches[0];
-    }
-
-    return;
+    return $self->form_with( name => $form );
 }
 
 
 sub form_id {
     my ($self, $formid) = @_;
-
-    my $temp;
-    my @matches = grep { defined($temp = $_->attr('id')) and ($temp eq $formid) } $self->forms;
-    if ( @matches ) {
-        $self->warn( 'There are ', scalar @matches, " forms with ID $formid.  The first one was used." )
-            if @matches > 1;
-        return $self->{current_form} = $matches[0];
-    }
-    else {
-        $self->warn( qq{ There is no form with ID "$formid"} );
-        return undef;
-    }
+    defined( my $form = $self->form_with( id => $formid ) )
+      or $self->warn(qq{ There is no form with ID "$formid"});
+    return $form;
 }
 
 
@@ -647,6 +626,56 @@ sub form_with_fields {
         return undef;
     }
 }
+
+
+
+sub form_with {
+    my ( $self, %spec ) = @_;
+
+    my @forms = $self->forms or return;
+    foreach my $attr ( keys %spec ) {
+        @forms = grep _equal( $spec{$attr}, $_->attr($attr) ), @forms or return;
+    }
+    if ( @forms > 1 ) {    # Warn if several forms matched.
+        # For ->form_with( method => 'POST', action => '', id => undef ) we get:
+        # >>There are 2 forms with empty action and no id and method "POST".
+        # The first one was used.<<
+
+        $self->warn(
+            'There are ' . @forms . ' forms ' . (
+                keys %spec    # explain search criteria if there were any
+                ? 'with ' . join(
+                    ' and ',    # "with ... and ... and ..."
+                    map {
+                        unless ( defined $spec{$_} ) {    # case $attr => undef
+                            qq{no $_};
+                        }
+                        elsif ( $spec{$_} eq '' ) {       # case $attr=> ''
+                            qq{empty $_};
+                        }
+                        else {                            # case $attr => $value
+                            qq{$_ "$spec{$_}"};
+                        }
+                      }                # case $attr => undef
+                      sort keys %spec  # sort keys to get deterministic messages
+                  )
+                : ''
+              )
+              . '.  The first one was used.'
+        );
+    }
+
+    return $self->{current_form} = $forms[0];
+}
+
+# NOT an object method!
+# Expects two values and returns true only when either
+# both are defined and eq(ual) or when both are not defined.
+sub _equal {
+    my ( $x, $y ) = @_;
+    defined $x ? defined $y && $x eq $y : !defined $y;
+}
+
 
 
 sub field {
@@ -1544,7 +1573,7 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-version 1.78
+version 1.79
 
 =head1 SYNOPSIS
 
@@ -2320,6 +2349,20 @@ for later used with Mech's form methods such as C<L</field()>> and C<L</click()>
 Returns undef if no form is found.
 
 Note that this functionality requires libwww-perl 5.69 or higher.
+
+=head2 $mech->form_with( $attr1 => $value1, $attr2 => $value2, ... )
+
+Searches for forms with arbitrary attribute/value pairs within the E<lt>formE<gt>
+tag.
+(Currently does not work for attribute C<action> due to implementation details
+of L<HTML::Form>.)
+When given more than one pair, all criteria must match.
+Using C<undef> as value means that the attribute in question may not be present.
+
+If it is found, the form is returned as an L<HTML::Form> object and set internally
+for later used with Mech's form methods such as C<L</field()>> and C<L</click()>>.
+
+Returns undef if no form is found.
 
 =head1 FIELD METHODS
 

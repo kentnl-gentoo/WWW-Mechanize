@@ -4,7 +4,7 @@
       "Andy Lester <andy at petdance.com>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Dist::Zilla version 6.006, CPAN::Meta::Converter version 2.150005",
+   "generated_by" : "Dist::Zilla version 6.007, CPAN::Meta::Converter version 2.150010",
    "license" : [
       "perl_5"
    ],
@@ -71,6 +71,7 @@
             "LWP" : "0",
             "LWP::Simple" : "0",
             "Test::More" : "0",
+            "Test::Output" : "0",
             "Test::RequiresInternet" : "0",
             "URI" : "0",
             "URI::Escape" : "0",
@@ -93,7 +94,7 @@
          "web" : "https://github.com/libwww-perl/WWW-Mechanize"
       }
    },
-   "version" : "1.78",
+   "version" : "1.79",
    "x_contributors" : [
       "Alexandr Ciornii <alexchorny@gmail.com>",
       "Andy Lester <andy@petdance.com>",
@@ -109,11 +110,13 @@
       "Kirrily 'Skud' Robert <skud@infotrope.net>",
       "Lars D\u026a\u1d07\u1d04\u1d0b\u1d0f\u1d21 \u8fea\u62c9\u65af <daxim@cpan.org>",
       "Mark Stosberg <mark@summersault.com>",
+      "Martin H. Sluka <martin@sluka.de>",
       "Matt S Trout <mst@shadowcat.co.uk>",
       "Max Maischein <corion@cpan.org>",
       "Olaf Alders <olaf@wundersolutions.com>",
       "Ricardo Signes <rjbs@cpan.org>",
       "sunnavy <sunnavy@bestpractical.com>",
+      "Varadinsky <varadinsky@yahoo.com>",
       "Zefram <zefram@fysh.org>"
    ],
    "x_serialization_backend" : "Cpanel::JSON::XS version 3.0217"
