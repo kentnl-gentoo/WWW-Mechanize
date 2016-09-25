@@ -2,7 +2,7 @@ NAME
     WWW::Mechanize - Handy web browsing in a Perl object
 
 VERSION
-    version 1.79
+    version 1.80
 
 SYNOPSIS
     "WWW::Mechanize", or Mech for short, is a Perl module for stateful
@@ -675,6 +675,11 @@ FORM METHODS
     If no form is found it returns "undef". This will also trigger a
     warning, unless "quiet" is enabled.
 
+  $mech->all_forms_with_fields( @fields )
+    Selects a form by passing in a list of field names it must contain. All
+    matching forms (perhaps none) are returned as a list of HTML::Form
+    objects.
+
   $mech->form_with_fields( @fields )
     Selects a form by passing in a list of field names it must contain. If
     there is more than one form on the page with that matches, then the
@@ -687,6 +692,16 @@ FORM METHODS
     Returns undef if no form is found.
 
     Note that this functionality requires libwww-perl 5.69 or higher.
+
+  $mech->all_forms_with( $attr1 => $value1, $attr2 => $value2, ... )
+    Searches for forms with arbitrary attribute/value pairs within the
+    <form> tag. (Currently does not work for attribute "action" due to
+    implementation details of HTML::Form.) When given more than one pair,
+    all criteria must match. Using "undef" as value means that the attribute
+    in question may not be present.
+
+    All matching forms (perhaps none) are returned as a list of HTML::Form
+    objects.
 
   $mech->form_with( $attr1 => $value1, $attr2 => $value2, ... )
     Searches for forms with arbitrary attribute/value pairs within the

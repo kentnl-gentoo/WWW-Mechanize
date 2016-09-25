@@ -7,8 +7,9 @@ package WWW::Mechanize;
 use strict;
 use warnings;
 
-our $VERSION = 1.79;
+our $VERSION = 1.80;
 
+use Tie::RefHash;
 use HTTP::Request 1.30;
 use LWP::UserAgent 5.827;
 use HTML::Form 1.00;
@@ -601,7 +602,7 @@ sub form_id {
 
 
 
-sub form_with_fields {
+sub all_forms_with_fields {
     my ($self, @fields) = @_;
     die 'no fields provided' unless scalar @fields;
 
@@ -613,7 +614,16 @@ sub form_with_fields {
         }
         push @matches, $form;
     }
+    return @matches;
+}
 
+
+
+sub form_with_fields {
+    my ($self, @fields) = @_;
+    die 'no fields provided' unless scalar @fields;
+
+    my @matches = $self->all_forms_with_fields(@fields);
     my $nmatches = @matches;
     if ( $nmatches > 0 ) {
         if ( $nmatches > 1 ) {
@@ -629,13 +639,22 @@ sub form_with_fields {
 
 
 
-sub form_with {
+sub all_forms_with {
     my ( $self, %spec ) = @_;
 
-    my @forms = $self->forms or return;
+    my @forms = $self->forms;
     foreach my $attr ( keys %spec ) {
         @forms = grep _equal( $spec{$attr}, $_->attr($attr) ), @forms or return;
     }
+    return @forms;
+}
+
+
+sub form_with {
+    my ( $self, %spec ) = @_;
+
+    return if not $self->forms;
+    my @forms = $self->all_forms_with(%spec);
     if ( @forms > 1 ) {    # Warn if several forms matched.
         # For ->form_with( method => 'POST', action => '', id => undef ) we get:
         # >>There are 2 forms with empty action and no id and method "POST".
@@ -959,22 +978,53 @@ sub submit_form {
         }
     }
 
+    my @filtered_sets;
     if ( $args{with_fields} ) {
         $fields || die q{must submit some 'fields' with with_fields};
-        $self->form_with_fields(keys %{$fields}) or die "There is no form with the requested fields";
+        my @got = $self->all_forms_with_fields(keys %{$fields});
+        die "There is no form with the requested fields" if not @got;
+        push @filtered_sets, \@got;
     }
-    elsif ( my $form_number = $args{form_number} ) {
-        $self->form_number( $form_number ) or die "There is no form numbered $form_number";
+    if ( my $form_number = $args{form_number} ) {
+        my $got = $self->form_number( $form_number );
+        die "There is no form numbered $form_number" if not $got;
+        push @filtered_sets, [ $got ];
     }
-    elsif ( my $form_name = $args{form_name} ) {
-        $self->form_name( $form_name ) or die qq{There is no form named "$form_name"};
+    if ( my $form_name = $args{form_name} ) {
+        my @got = $self->all_forms_with( name => $form_name );
+        die qq{There is no form named "$form_name"} if not @got;
+        push @filtered_sets, \@got;
     }
-    elsif ( my $form_id = $args{form_id} ) {
-        $self->form_id( $form_id ) or die qq{There is no form with ID "$form_id"};
+    if ( my $form_id = $args{form_id} ) {
+        my @got = $self->all_forms_with( id => $form_id );
+        $self->warn(qq{ There is no form with ID "$form_id"}) if not @got;
+        push @filtered_sets, \@got;
     }
-    else {
+
+    if (not @filtered_sets) {
         # No form selector was used.
         # Maybe a form was set separately, or we'll default to the first form.
+    }
+    else {
+        # Need to intersect to apply all the various filters.
+        # Assume that each filtered set only has a given form object once.
+        # So we can count occurrences.
+        #
+        tie my %c, 'Tie::RefHash' or die;
+        foreach (@filtered_sets) {
+            foreach (@$_) {
+                ++$c{$_};
+            }
+        }
+        my $expected_count = scalar @filtered_sets;
+        my @matched = grep { $c{$_} == $expected_count } keys %c;
+        if (not @matched) {
+            die "There is no form that satisfies all the criteria";
+        }
+        if (@matched > 1) {
+            die "More than one form satisfies all the criteria";
+        }
+        $self->{current_form} = $matched[0];
     }
 
     $self->set_fields( %{$fields} ) if $fields;
@@ -1573,7 +1623,7 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-version 1.79
+version 1.80
 
 =head1 SYNOPSIS
 
@@ -2337,6 +2387,10 @@ C<L</field()>> and C<L</click()>>.
 If no form is found it returns C<undef>.  This will also trigger a warning,
 unless C<quiet> is enabled.
 
+=head2 $mech->all_forms_with_fields( @fields )
+
+Selects a form by passing in a list of field names it must contain.  All matching forms (perhaps none) are returned as a list of L<HTML::Form> objects.
+
 =head2 $mech->form_with_fields( @fields )
 
 Selects a form by passing in a list of field names it must contain.  If there
@@ -2349,6 +2403,17 @@ for later used with Mech's form methods such as C<L</field()>> and C<L</click()>
 Returns undef if no form is found.
 
 Note that this functionality requires libwww-perl 5.69 or higher.
+
+=head2 $mech->all_forms_with( $attr1 => $value1, $attr2 => $value2, ... )
+
+Searches for forms with arbitrary attribute/value pairs within the E<lt>formE<gt>
+tag.
+(Currently does not work for attribute C<action> due to implementation details
+of L<HTML::Form>.)
+When given more than one pair, all criteria must match.
+Using C<undef> as value means that the attribute in question may not be present.
+
+All matching forms (perhaps none) are returned as a list of L<HTML::Form> objects.
 
 =head2 $mech->form_with( $attr1 => $value1, $attr2 => $value2, ... )
 
