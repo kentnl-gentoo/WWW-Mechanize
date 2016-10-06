@@ -7,7 +7,7 @@ package WWW::Mechanize;
 use strict;
 use warnings;
 
-our $VERSION = 1.80;
+our $VERSION = 1.81;
 
 use Tie::RefHash;
 use HTTP::Request 1.30;
@@ -147,6 +147,22 @@ sub reload {
     my $self = shift;
 
     return unless my $req = $self->{req};
+
+    # LWP::UserAgent sets up a request_prepare handler that calls
+    # $self->cookie_jar->add_cookie_header($req)
+    #
+    # HTTP::Cookies::add_cookie_header always preserves existing
+    # cookies in a request object
+    #
+    # we pass an existing request to _make_request
+    #
+    # result: cookies will get repeated every time someone calls
+    # ->reload, sooner or later leading to a "request too big" from
+    # the server
+    #
+    # until https://rt.cpan.org/Public/Bug/Display.html?id=75897 is
+    # fixed, let's clear the cookies from the existing request
+    $req->remove_header('Cookie');
 
     return $self->_update_page( $req, $self->_make_request( $req, @_ ) );
 }
@@ -1623,7 +1639,7 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-version 1.80
+version 1.81
 
 =head1 SYNOPSIS
 

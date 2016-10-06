@@ -62,7 +62,7 @@ resources:
   bugtracker: https://github.com/libwww-perl/WWW-Mechanize/issues
   homepage: https://github.com/libwww-perl/WWW-Mechanize
   repository: https://github.com/libwww-perl/WWW-Mechanize.git
-version: '1.80'
+version: '1.81'
 x_contributors:
   - 'Alexandr Ciornii <alexchorny@gmail.com>'
   - 'Andy Lester <andy@petdance.com>'
