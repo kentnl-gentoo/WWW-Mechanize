@@ -7,7 +7,7 @@ package WWW::Mechanize;
 use strict;
 use warnings;
 
-our $VERSION = 1.81;
+our $VERSION = 1.82;
 
 use Tie::RefHash;
 use HTTP::Request 1.30;
@@ -975,7 +975,7 @@ sub submit_form {
     my( $self, %args ) = @_;
 
     for ( keys %args ) {
-        if ( !/^(form_(number|name|fields|id)|(with_)?fields|button|x|y)$/ ) {
+        if ( !/^(form_(number|name|fields|id)|(with_)?fields|button|x|y|strict_forms)$/ ) {
             # XXX Why not die here?
             $self->warn( qq{Unknown submit_form parameter "$_"} );
         }
@@ -1041,6 +1041,12 @@ sub submit_form {
             die "More than one form satisfies all the criteria";
         }
         $self->{current_form} = $matched[0];
+    }
+
+    if (defined($args{strict_forms})) {
+        # Strict argument has been passed, set the flag as appropriate
+        # this must be done prior to attempting to set the fields
+        $self->current_form->strict($args{strict_forms});
     }
 
     $self->set_fields( %{$fields} ) if $fields;
@@ -1234,7 +1240,7 @@ sub redirect_ok {
 sub request {
     my $self = shift;
     my $request = shift;
-    
+
     _die( '->request was called without a request parameter' )
         unless $request;
 
@@ -1639,7 +1645,7 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-version 1.81
+version 1.82
 
 =head1 SYNOPSIS
 
@@ -2667,6 +2673,12 @@ Clicks on button I<button> (calls C<L</click()>>)
 =item * C<< x => x, y => y >>
 
 Sets the x or y values for C<L</click()>>
+
+=item * C<< strict_forms => bool >>
+
+Sets the HTML::Form strict flag which causes form submission to croak if any of the passed
+fields don't exist on the page, and/or a value doesn't exist in a select element.
+By default HTML::Form defaults this value to false.
 
 =back
 

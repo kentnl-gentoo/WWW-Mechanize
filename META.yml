@@ -17,6 +17,7 @@ build_requires:
   Test::Deep: '0'
   Test::Fatal: '0'
   Test::More: '0'
+  Test::Needs: '0'
   Test::Output: '0'
   Test::RequiresInternet: '0'
   Test::Warnings: '0'
@@ -62,7 +63,7 @@ resources:
   bugtracker: https://github.com/libwww-perl/WWW-Mechanize/issues
   homepage: https://github.com/libwww-perl/WWW-Mechanize
   repository: https://github.com/libwww-perl/WWW-Mechanize.git
-version: '1.81'
+version: '1.82'
 x_contributors:
   - 'Alexandr Ciornii <alexchorny@gmail.com>'
   - 'Andy Lester <andy@petdance.com>'
@@ -73,6 +74,7 @@ x_contributors:
   - 'Flavio Poletti <flavio@polettix.it>'
   - 'Florian Schlichting <fsfs@debian.org>'
   - 'Gabor Szabo <szabgab@gmail.com>'
+  - 'Gareth Tunley <gjtunley@gmail.com>'
   - 'Jason May <jasonmay@bestpractical.com>'
   - 'Jesse Vincent <jesse@bestpractical.com>'
   - 'Karen Etheridge <ether@cpan.org>'

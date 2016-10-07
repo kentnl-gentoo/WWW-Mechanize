@@ -52,6 +52,7 @@ my %WriteMakefileArgs = (
     "Test::Deep" => 0,
     "Test::Fatal" => 0,
     "Test::More" => 0,
+    "Test::Needs" => 0,
     "Test::Output" => 0,
     "Test::RequiresInternet" => 0,
     "Test::Warnings" => 0,
@@ -62,7 +63,7 @@ my %WriteMakefileArgs = (
     "lib" => 0,
     "vars" => 0
   },
-  "VERSION" => "1.81",
+  "VERSION" => "1.82",
   "test" => {
     "TESTS" => "t/*.t t/live/*.t t/local/*.t t/mech-dump/*.t"
   }
@@ -95,6 +96,7 @@ my %FallbackPrereqs = (
   "Test::Deep" => 0,
   "Test::Fatal" => 0,
   "Test::More" => 0,
+  "Test::Needs" => 0,
   "Test::Output" => 0,
   "Test::RequiresInternet" => 0,
   "Test::Warnings" => 0,
