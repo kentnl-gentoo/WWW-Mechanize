@@ -27,6 +27,8 @@ t/add_header.t
 t/aliases.t
 t/area_link.html
 t/area_link.t
+t/author-live/encoding.t
+t/author-live/wikipedia.t
 t/author-pod-coverage.t
 t/autocheck.t
 t/bad-request.t
@@ -61,8 +63,6 @@ t/image-parse.t
 t/link-base.t
 t/link-relative.t
 t/link.t
-t/live/encoding.t
-t/live/wikipedia.t
 t/local/LocalServer.pm
 t/local/back.t
 t/local/click.t

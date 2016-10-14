@@ -99,7 +99,7 @@
          "web" : "https://github.com/libwww-perl/WWW-Mechanize"
       }
    },
-   "version" : "1.82",
+   "version" : "1.83",
    "x_contributors" : [
       "Alexandr Ciornii <alexchorny@gmail.com>",
       "Andy Lester <andy@petdance.com>",
@@ -122,6 +122,7 @@
       "Max Maischein <corion@cpan.org>",
       "Olaf Alders <olaf@wundersolutions.com>",
       "Ricardo Signes <rjbs@cpan.org>",
+      "Steve Scaffidi <stephen@scaffidi.net>",
       "sunnavy <sunnavy@bestpractical.com>",
       "Varadinsky <varadinsky@yahoo.com>",
       "Zefram <zefram@fysh.org>"

@@ -1,8 +1,16 @@
+
+BEGIN {
+  unless ($ENV{AUTHOR_TESTING}) {
+    print "1..0 # SKIP these tests are for testing by the author\n";
+    exit
+  }
+}
+
 use strict;
 use warnings;
 
 use constant PAIRS => {
-    'https://delicious.com/'
+    'https://www.tripadvisor.com/'
         => 'utf-8',
     'http://www.liveinternet.ru/users/dashdi/blog'
         => '(?:cp|windows-)1251',
@@ -11,7 +19,7 @@ use constant PAIRS => {
 use Encode;
 use Test::More;
 use Test::Needs 'LWP::Protocol::https';
-use Test::RequiresInternet( 'delicious.com' => 80, 'www.liveinternet.ru' => 80 );
+use Test::RequiresInternet( 'www.tripadvisor.com' => 443, 'www.liveinternet.ru' => 80 );
 use WWW::Mechanize;
 
 my %pairs = %{+PAIRS};

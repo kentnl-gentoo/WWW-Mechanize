@@ -2,7 +2,7 @@ NAME
     WWW::Mechanize - Handy web browsing in a Perl object
 
 VERSION
-    version 1.82
+    version 1.83
 
 SYNOPSIS
     "WWW::Mechanize", or Mech for short, is a Perl module for stateful
