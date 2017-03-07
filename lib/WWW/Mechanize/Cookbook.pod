@@ -13,7 +13,7 @@ WWW::Mechanize::Cookbook - Recipes for using WWW::Mechanize
 
 =head1 VERSION
 
-version 1.83
+version 1.84
 
 =head1 INTRODUCTION
 
@@ -77,13 +77,6 @@ Find all links that have the word "download" in them.
 
     my @links = $mech->find_all_links(
         tag => "a", text_regex => qr/\bdownload\b/i );
-
-=head1 APPLICATIONS
-
-=head2 Check all pages on a web site
-
-Use Abe Timmerman's L<WWW::CheckSite>
-L<http://search.cpan.org/dist/WWW-CheckSite/>
 
 =head1 SEE ALSO
 

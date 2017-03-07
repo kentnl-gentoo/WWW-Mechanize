@@ -1,7 +1,7 @@
 
 BEGIN {
-  unless ($ENV{RELEASE_TESTING}) {
-    print "1..0 # SKIP these tests are for release candidate testing\n";
+  unless ($ENV{AUTHOR_TESTING}) {
+    print qq{1..0 # SKIP these tests are for testing by the author\n};
     exit
   }
 }
@@ -13,6 +13,7 @@ use Test::Code::TidyAll 0.24;
 
 tidyall_ok(
      verbose => ( exists $ENV{TEST_TIDYALL_VERBOSE} ? $ENV{TEST_TIDYALL_VERBOSE} : 0 ),
+     jobs => ( exists $ENV{TEST_TIDYALL_JOBS} ? $ENV{TEST_TIDYALL_JOBS} : 1 ),
 );
 
-done_testing();
+done_testing;

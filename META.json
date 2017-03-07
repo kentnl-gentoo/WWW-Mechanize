@@ -4,7 +4,7 @@
       "Andy Lester <andy at petdance.com>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Dist::Zilla version 6.007, CPAN::Meta::Converter version 2.150010",
+   "generated_by" : "Dist::Zilla version 6.008, CPAN::Meta::Converter version 2.150005",
    "license" : [
       "perl_5"
    ],
@@ -32,7 +32,7 @@
       "develop" : {
          "requires" : {
             "Pod::Coverage::TrustPod" : "0",
-            "Test::Code::TidyAll" : "0.24",
+            "Test::Code::TidyAll" : "0.50",
             "Test::More" : "0.88",
             "Test::Pod::Coverage" : "1.08"
          }
@@ -99,10 +99,11 @@
          "web" : "https://github.com/libwww-perl/WWW-Mechanize"
       }
    },
-   "version" : "1.83",
+   "version" : "1.84",
    "x_contributors" : [
       "Alexandr Ciornii <alexchorny@gmail.com>",
       "Andy Lester <andy@petdance.com>",
+      "Chase Whitener <capoeirab@cpan.org>",
       "dakkar <dakkar@thenautilus.net>",
       "David Precious <davidp@preshweb.co.uk>",
       "David Steinbrunner <dsteinbrunner@pobox.com>",
@@ -120,13 +121,16 @@
       "Martin H. Sluka <martin@sluka.de>",
       "Matt S Trout <mst@shadowcat.co.uk>",
       "Max Maischein <corion@cpan.org>",
+      "Neil Bowers <neil@bowers.com>",
       "Olaf Alders <olaf@wundersolutions.com>",
       "Ricardo Signes <rjbs@cpan.org>",
+      "Schuyler Langdon <schuyler@velargo.com>",
       "Steve Scaffidi <stephen@scaffidi.net>",
       "sunnavy <sunnavy@bestpractical.com>",
       "Varadinsky <varadinsky@yahoo.com>",
+      "Ville Skytt\u00e4 <ville.skytta@iki.fi>",
       "Zefram <zefram@fysh.org>"
    ],
-   "x_serialization_backend" : "Cpanel::JSON::XS version 3.0217"
+   "x_serialization_backend" : "Cpanel::JSON::XS version 3.0225"
 }
 

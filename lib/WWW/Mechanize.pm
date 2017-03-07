@@ -3,11 +3,10 @@ package WWW::Mechanize;
 #ABSTRACT: Handy web browsing in a Perl object
 
 
-
 use strict;
 use warnings;
 
-our $VERSION = 1.83;
+our $VERSION = 1.84;
 
 use Tie::RefHash;
 use HTTP::Request 1.30;
@@ -226,7 +225,7 @@ sub success {
 
 sub uri {
     my $self = shift;
-    return $self->response->request->uri;
+    return $self->response ? $self->response->request->uri : undef;
 }
 
 sub res {           my $self = shift; return $self->{res}; }
@@ -1526,6 +1525,9 @@ sub _link_from_token {
         if ( $onClick && ($onClick =~ /^window\.open\(\s*'([^']+)'/) ) {
             $url = $1;
         }
+        elsif( $url && $url =~ /^javascript\:\s*(?:void\(\s*)?window\.open\(\s*'([^']+)'/s ){
+            $url = $1;
+        }
     } # a
 
     # Of the tags we extract from, only 'AREA' has an alt tag
@@ -1645,37 +1647,11 @@ WWW::Mechanize - Handy web browsing in a Perl object
 
 =head1 VERSION
 
-version 1.83
+version 1.84
 
 =head1 SYNOPSIS
 
-C<WWW::Mechanize>, or Mech for short, is a Perl module for stateful
-programmatic web browsing, used for automating interaction with
-websites.
-
-Features include:
-
-=over 4
-
-=item * All HTTP methods
-
-=item * High-level hyperlink and HTML form support, without having to parse HTML yourself
-
-=item * SSL support
-
-=item * Automatic cookies
-
-=item * Custom HTTP headers
-
-=item * Automatic handling of redirections
-
-=item * Proxies
-
-=item * HTTP authentication
-
-=back
-
-Mech supports performing a sequence of page fetches including
+WWW::Mechanize supports performing a sequence of page fetches including
 following links and submitting forms. Each fetched page is parsed
 and its links and forms are extracted. A link or a form can be
 selected, form fields can be filled and the next page can be fetched.
@@ -1704,6 +1680,34 @@ be queried and revisited.
         fields    => { query  => 'pot of gold', },
         button    => 'Search Now'
     );
+
+=head1 DESCRIPTION
+
+C<WWW::Mechanize>, or Mech for short, is a Perl module for stateful
+programmatic web browsing, used for automating interaction with
+websites.
+
+Features include:
+
+=over 4
+
+=item * All HTTP methods
+
+=item * High-level hyperlink and HTML form support, without having to parse HTML yourself
+
+=item * SSL support
+
+=item * Automatic cookies
+
+=item * Custom HTTP headers
+
+=item * Automatic handling of redirections
+
+=item * Proxies
+
+=item * HTTP authentication
+
+=back
 
 Mech is well suited for use in testing web applications.  If you use
 one of the Test::*, like L<Test::HTML::Lint> modules, you can check the
@@ -1794,7 +1798,7 @@ you the trouble of manually checking yourself.  Any errors found
 are errors, not warnings.
 
 The default value is ON, unless it's being subclassed, in which
-case it is OFF.  This means that standalone L<WWW::Mechanize>instances
+case it is OFF.  This means that standalone L<WWW::Mechanize> instances
 have autocheck turned on, which is protective for the vast majority
 of Mech users who don't bother checking the return value of get()
 and post() and can't figure why their code fails. However, if
@@ -2422,7 +2426,7 @@ and a warning is generated.
 If it is found, the form is returned as an L<HTML::Form> object and set internally
 for later used with Mech's form methods such as C<L</field()>> and C<L</click()>>.
 
-Returns undef if no form is found.
+Returns undef and emits a warning if no form is found.
 
 Note that this functionality requires libwww-perl 5.69 or higher.
 

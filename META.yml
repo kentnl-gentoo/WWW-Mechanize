@@ -30,7 +30,7 @@ build_requires:
 configure_requires:
   ExtUtils::MakeMaker: '0'
 dynamic_config: 0
-generated_by: 'Dist::Zilla version 6.007, CPAN::Meta::Converter version 2.150010'
+generated_by: 'Dist::Zilla version 6.008, CPAN::Meta::Converter version 2.150005'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -63,10 +63,11 @@ resources:
   bugtracker: https://github.com/libwww-perl/WWW-Mechanize/issues
   homepage: https://github.com/libwww-perl/WWW-Mechanize
   repository: https://github.com/libwww-perl/WWW-Mechanize.git
-version: '1.83'
+version: '1.84'
 x_contributors:
   - 'Alexandr Ciornii <alexchorny@gmail.com>'
   - 'Andy Lester <andy@petdance.com>'
+  - 'Chase Whitener <capoeirab@cpan.org>'
   - 'dakkar <dakkar@thenautilus.net>'
   - 'David Precious <davidp@preshweb.co.uk>'
   - 'David Steinbrunner <dsteinbrunner@pobox.com>'
@@ -84,10 +85,13 @@ x_contributors:
   - 'Martin H. Sluka <martin@sluka.de>'
   - 'Matt S Trout <mst@shadowcat.co.uk>'
   - 'Max Maischein <corion@cpan.org>'
+  - 'Neil Bowers <neil@bowers.com>'
   - 'Olaf Alders <olaf@wundersolutions.com>'
   - 'Ricardo Signes <rjbs@cpan.org>'
+  - 'Schuyler Langdon <schuyler@velargo.com>'
   - 'Steve Scaffidi <stephen@scaffidi.net>'
   - 'sunnavy <sunnavy@bestpractical.com>'
   - 'Varadinsky <varadinsky@yahoo.com>'
+  - 'Ville Skyttä <ville.skytta@iki.fi>'
   - 'Zefram <zefram@fysh.org>'
 x_serialization_backend: 'YAML::Tiny version 1.69'
